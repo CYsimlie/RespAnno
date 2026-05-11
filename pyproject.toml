@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "respanno"
+version = "1.6.6"
+description = "Respiratory Sound Annotation Tool with ML-assisted labeling"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "C.Y.Pan"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "librosa>=0.9",
+    "pyqtgraph>=0.13",
+    "PyQt5>=5.15",
+    "sounddevice>=0.4",
+    "scikit-learn>=1.0",
+    "lightgbm>=3.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-qt>=4",
+]
+
+[project.scripts]
+respanno = "respanno.main:main"
+
+[tool.setuptools.packages.find]
+include = ["respanno*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"

@@ -1,0 +1,16 @@
+name: respanno
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.9
+  - numpy>=1.21
+  - scipy>=1.7
+  - librosa>=0.9
+  - pyqt>=5.15
+  - pyqtgraph>=0.13
+  - scikit-learn>=1.0
+  - lightgbm>=3.3
+  - pip
+  - pip:
+    - sounddevice>=0.4
