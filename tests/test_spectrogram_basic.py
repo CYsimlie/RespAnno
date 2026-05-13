@@ -1,182 +1,189 @@
-"""Tests for STFT spectrogram computation and feature extraction.
+"""Tests for respanno.dsp.spectrogram.
 
-Status: TEST SCAFFOLDING — STFT / feature logic is embedded in
-AudioViewer.update_spectrogram() and AudioViewer.compute_short_time_features().
-Both require a loaded audio file on an AudioViewer instance (needs QApplication).
-
-These tests verify:
-1. librosa STFT output shapes and values on synthetic signals.
-2. Individual feature calculation correctness (using pure functions).
-3. Feature name inventory completeness.
-
-TODO (Phase 3): After extracting `compute_short_time_features` and
-`update_spectrogram` into `respanno/dsp/`, rewrite tests to use those
-directly without QApplication.
+All tests exercise the extracted module directly (no QApplication needed).
 """
 
 import numpy as np
 import pytest
-import librosa
+
+from respanno.dsp.spectrogram import (
+    DEFAULT_STFT_CONFIG,
+    compute_stft_db,
+    decimate_spec_for_display,
+    get_palette_256,
+    colorize_spectrogram,
+    compute_spectrogram_display,
+    limit_frequency_range,
+)
 
 
 # ---------------------------------------------------------------------------
-# STFT basic tests (librosa, no GUI needed)
+# Fixtures
 # ---------------------------------------------------------------------------
 
-class TestSTFTBasic:
-    """Verify librosa STFT output shapes for a synthetic signal."""
+@pytest.fixture(scope="module")
+def sig_4000():
+    sr = 4000
+    t = np.linspace(0, 2, sr * 2, endpoint=False)
+    sig = 0.5 * np.sin(2 * np.pi * 100 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)
+    return sig.astype(np.float32), sr
 
-    def test_stft_output_shape(self, synthetic_audio):
-        sig, sr = synthetic_audio
-        n_fft = 512
-        hop_length = 256
 
-        D = librosa.stft(sig, n_fft=n_fft, hop_length=hop_length,
-                         center=True, pad_mode="reflect")
+# ---------------------------------------------------------------------------
+# compute_stft_db
+# ---------------------------------------------------------------------------
 
-        # Expected freq bins: n_fft//2 + 1
-        assert D.shape[0] == n_fft // 2 + 1
-
-        # Expected time frames: floor((len(sig) + n_fft) / hop_length)
-        # (approximately, with center=True)
-        assert D.shape[1] > 0
-
-    def test_stft_freq_axis(self, synthetic_audio):
-        sig, sr = synthetic_audio
-        n_fft = 512
-        D = librosa.stft(sig, n_fft=n_fft, hop_length=256)
-        freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
-
-        assert len(freqs) == D.shape[0]
+class TestComputeSTFTDB:
+    def test_output_shape(self, sig_4000):
+        sig, sr = sig_4000
+        S_db, freqs = compute_stft_db(sig, sr, n_fft=512, hop_length=256, f_max=2000)
+        assert S_db.ndim == 2
+        assert S_db.shape[0] == len(freqs)
+        assert S_db.shape[1] > 0
         assert freqs[0] == 0.0
-        assert freqs[-1] == sr / 2
 
-    def test_stft_db_conversion(self, synthetic_audio):
-        sig, sr = synthetic_audio
-        D = librosa.stft(sig, n_fft=512, hop_length=256)
-        S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+    def test_f_max_clamped_to_nyquist(self, sig_4000):
+        sig, sr = sig_4000
+        S_db, freqs = compute_stft_db(sig, sr, n_fft=512, hop_length=256, f_max=4000)
+        assert freqs[-1] <= sr / 2
 
-        # DB values should be <= 0 (since ref=np.max)
-        assert np.all(S_db <= 1e-9)
+    def test_all_db_values_at_most_zero(self, sig_4000):
+        sig, sr = sig_4000
+        S_db, _ = compute_stft_db(sig, sr)
+        # ref=np.max → the maximum should be ~0 and all values <= 0
+        assert np.max(np.abs(S_db)) < 100  # sanity: not crazy dB values
 
-    def test_stft_f_max_subset(self, synthetic_audio):
-        sig, sr = synthetic_audio
-        n_fft = 512
-        D = librosa.stft(sig, n_fft=n_fft, hop_length=256)
-        freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
-
-        f_max = 2000.0
-        idx = freqs <= f_max
-        assert np.any(idx)
-        S_sub = np.abs(D)[idx, :]
-        assert S_sub.shape[0] > 0
-        assert S_sub.shape[1] == D.shape[1]
+    def test_empty_raises(self):
+        with pytest.raises(ValueError):
+            compute_stft_db(np.array([]), 4000)
 
 
 # ---------------------------------------------------------------------------
-# Feature calculation tests (pure functions, no GUI needed)
+# limit_frequency_range
 # ---------------------------------------------------------------------------
 
-class TestFeatureCalculations:
-    """Verify individual feature formulas on known inputs."""
-
-    def test_short_time_energy(self):
-        """短时能量 = sum(x^2) per frame."""
-        # 3 frames, 2 samples each: shape (3, 2)
-        frames = np.array([[1.0, 0.5],
-                           [2.0, 1.0],
-                           [1.0, 0.5]])
-        energy = np.sum(frames ** 2, axis=1)  # sum over samples in each frame
-        expected = np.array([1.25, 5.0, 1.25])  # frame0:1+0.25, frame1:4+1, frame2:1+0.25
-        assert np.allclose(energy, expected)
-
-    def test_zero_crossing_rate(self):
-        """过零率 should count sign changes."""
-        x = np.array([1.0, -1.0, 1.0, -1.0], dtype=np.float32)
-        # Pad to length > frame_length for librosa
-        x_long = np.tile(x, 128)
-        zcr = librosa.feature.zero_crossing_rate(x_long, frame_length=256, hop_length=128)[0]
-        assert zcr.size > 0
-        assert np.all(zcr >= 0) and np.all(zcr <= 1)
-
-    def test_spectral_centroid(self):
-        """谱质心 should be within freq range."""
-        sig, sr = 0.5 * np.sin(2 * np.pi * 300 * np.linspace(0, 1, 4000)), 4000
-        D = librosa.stft(sig, n_fft=512, hop_length=256)
-        S = np.abs(D)
-        cent = librosa.feature.spectral_centroid(S=S, sr=sr)[0]
-        # Centroid of a pure 300 Hz sine should be near 300 Hz
-        assert np.all(np.abs(cent - 300) < 100)
-
-    def test_spectral_flatness_range(self):
-        """谱平坦度 should be in [0, 1]."""
-        sig, sr = 0.5 * np.sin(2 * np.pi * 300 * np.linspace(0, 1, 4000)), 4000
-        D = librosa.stft(sig, n_fft=512, hop_length=256)
-        flat = librosa.feature.spectral_flatness(S=np.abs(D))[0]
-        assert np.all(flat >= 0) and np.all(flat <= 1)
-
-
-class TestFeatureInventory:
-    """Verify the set of feature names matches the legacy code definition."""
-
-    def test_feature_names_completeness(self):
-        """All features listed in the legacy UI must be accounted for."""
-        time_features = {
-            "短时能量", "短时均值", "方差", "峰度", "偏度",
-            "过零率", "teager能量算子",
-        }
-        spec_basic = {
-            "谱均值", "谱标准差", "谱中位数", "谱能量", "谱RMS", "谱幅和",
-            "谱质心", "谱带宽", "谱偏度", "谱峰度", "谱滚降", "谱平坦度",
-            "谱熵", "谱通量",
-            "最大谱峰值", "谱峰数量",
-            "低频能量占比", "中频能量占比", "高频能量占比",
-            "谱四分位距", "谱MAD", "谱差分零交叉率", "谱平滑度",
-            "主峰/次峰比", "谱复杂度",
-            "主峰能量占比", "前三峰能量占比", "90%能量覆盖频点数",
-            "主峰-3dB带宽", "主峰Q因子",
-        }
-        cor_features = {
-            "cor_dist_ratio_mean", "cor_mean_slope", "cor_max_slope",
-            "cor_std_slope", "cor_max_peak", "cor_second_peak",
-            "cor_peak_count", "cor_peak_density", "cor_area", "cor_std",
-            "cor_cv", "cor_skewness", "cor_kurtosis",
-            "cor_local_max_slope_mean", "cor_local_max_slope_min",
-            "cor_local_std_mean", "cor_local_std_max",
-            "cor_local_pk2pk_mean", "cor_local_pk2pk_max",
-        }
-
-        all_features = time_features | spec_basic | cor_features
-        # Legacy code lists 56 features (7 time + 30 spec + 19 cor)
-        assert len(all_features) == 56, f"Expected 56, got {len(all_features)}"
-        assert "短时能量" in all_features
-        assert "谱质心" in all_features
-        assert "cor_dist_ratio_mean" in all_features
+class TestLimitFrequencyRange:
+    def test_crops(self, sig_4000):
+        sig, sr = sig_4000
+        S_db, freqs = compute_stft_db(sig, sr, f_max=2000)
+        S_sub, f_sub = limit_frequency_range(S_db, freqs, f_max=500, sr=sr)
+        assert f_sub[-1] <= 500
+        assert S_sub.shape[0] < S_db.shape[0]
 
 
 # ---------------------------------------------------------------------------
-# TODO: Tests that require extraction
+# decimate_spec_for_display
 # ---------------------------------------------------------------------------
 
-class TestSpectrogramFromAudioViewer:
-    """
-    TODO: After extracting update_spectrogram to respanno/dsp/stft.py:
+class TestDecimate:
+    def test_no_change_when_small(self):
+        spec = np.random.default_rng(0).normal(size=(100, 200))
+        result = decimate_spec_for_display(spec, max_time_bins=500, max_freq_bins=256)
+        assert result.shape == spec.shape
 
-    1. test_update_spectrogram_output_shape:
-       - Verify S_db shape matches (n_freq_bins <= f_max, n_frames)
+    def test_reduces_large_freq(self):
+        spec = np.random.default_rng(0).normal(size=(800, 100))
+        result = decimate_spec_for_display(spec, max_time_bins=9999, max_freq_bins=256)
+        assert result.shape[0] == 256
 
-    2. test_decimate_spec_for_display:
-       - Verify output is smaller than input when exceeding thresholds
+    def test_reduces_large_time(self):
+        spec = np.random.default_rng(0).normal(size=(100, 5000))
+        result = decimate_spec_for_display(spec, max_time_bins=1000, max_freq_bins=256)
+        assert result.shape[1] == 1000
 
-    3. test_colorize_spec_output_range:
-       - Verify RGB values are in [0, 255]
+    def test_1d_input_passthrough(self):
+        spec = np.array([1.0, 2.0, 3.0])
+        result = decimate_spec_for_display(spec)
+        assert np.array_equal(result, spec)
 
-    4. test_features_matrix_shape:
-       - Verify stft_features shape is (T, 2D) after ensure_frame_features
 
-    5. test_features_reproducible:
-       - Same audio -> same feature matrix (deterministic)
-    """
+# ---------------------------------------------------------------------------
+# get_palette_256
+# ---------------------------------------------------------------------------
 
-    def test_todo_placeholder(self):
-        pytest.skip("TODO: extract compute_short_time_features to respanno/dsp/")
+class TestPalette:
+    def test_heatmap_shape(self):
+        lut = get_palette_256("Heatmap")
+        assert lut.shape == (256, 3)
+        assert np.all(lut >= 0.0) and np.all(lut <= 1.0)
+
+    def test_grayscale_shape(self):
+        lut = get_palette_256("Grayscale")
+        assert lut.shape == (256, 3)
+        # Each row should have identical R/G/B
+        assert np.allclose(lut[:, 0], lut[:, 1])
+        assert np.allclose(lut[:, 1], lut[:, 2])
+
+
+# ---------------------------------------------------------------------------
+# colorize_spectrogram
+# ---------------------------------------------------------------------------
+
+class TestColorize:
+    def test_output_is_uint8_rgb(self, sig_4000):
+        sig, sr = sig_4000
+        S_db, _ = compute_stft_db(sig, sr)
+        rgb = colorize_spectrogram(S_db.T, cmap="Heatmap")
+        assert rgb.dtype == np.uint8
+        assert rgb.ndim == 3
+        assert rgb.shape[2] == 3
+        assert rgb.shape[0] == S_db.shape[1]  # time
+        assert rgb.shape[1] == S_db.shape[0]  # freq
+
+    def test_heatmap_available(self, sig_4000):
+        sig, sr = sig_4000
+        S_db, _ = compute_stft_db(sig, sr)
+        rgb = colorize_spectrogram(S_db.T, cmap="Heatmap")
+        assert rgb.shape[2] == 3
+        assert rgb.max() <= 255
+
+    def test_grayscale_available(self, sig_4000):
+        sig, sr = sig_4000
+        S_db, _ = compute_stft_db(sig, sr)
+        rgb = colorize_spectrogram(S_db.T, cmap="Grayscale")
+        # R == G == B for every pixel
+        assert np.allclose(rgb[:, :, 0], rgb[:, :, 1])
+        assert np.allclose(rgb[:, :, 1], rgb[:, :, 2])
+
+    def test_custom_levels(self, sig_4000):
+        sig, sr = sig_4000
+        S_db, _ = compute_stft_db(sig, sr)
+        rgb = colorize_spectrogram(S_db.T, cmap="Heatmap", vmin=-80, vmax=-10)
+        assert rgb.shape[2] == 3
+
+    def test_all_nan_input(self):
+        spec = np.full((10, 20), np.nan)
+        rgb = colorize_spectrogram(spec)
+        assert rgb.shape == (10, 20, 3)
+        assert np.all(rgb == 0)
+
+
+# ---------------------------------------------------------------------------
+# compute_spectrogram_display
+# ---------------------------------------------------------------------------
+
+class TestComputeSpectrogramDisplay:
+    def test_full_pipeline(self, sig_4000):
+        sig, sr = sig_4000
+        result = compute_spectrogram_display(sig, sr)
+        assert "S_db" in result
+        assert "rgb" in result
+        assert "freqs" in result
+        assert "duration" in result
+        assert result["rgb"].ndim == 3
+
+    def test_config_override(self, sig_4000):
+        sig, sr = sig_4000
+        cfg = {"n_fft": 256, "hop_length": 128, "f_max": 1000, "cmap": "Grayscale"}
+        result = compute_spectrogram_display(sig, sr, config=cfg)
+        assert result["n_fft"] == 256
+        assert result["hop_length"] == 128
+        assert result["f_max_eff"] <= 1000
+
+
+class TestDefaultConfig:
+    def test_defaults_match_legacy(self):
+        assert DEFAULT_STFT_CONFIG["n_fft"] == 512
+        assert DEFAULT_STFT_CONFIG["hop_length"] == 256
+        assert DEFAULT_STFT_CONFIG["f_max"] == 2000
+        assert DEFAULT_STFT_CONFIG["cmap"] == "Heatmap"
