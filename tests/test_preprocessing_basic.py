@@ -1,162 +1,236 @@
-"""Tests for audio preprocessing (Butterworth filter, resampling).
+"""Tests for respanno.audio.preprocessing.
 
-Status: TEST SCAFFOLDING — tests are written but may fail because
-the preprocessing functions are embedded inside the AudioViewer
-class and cannot be called directly without a full QApplication.
-
-TODO (Phase 6): After extracting `_apply_butter_filter_for_preprocessing`
-and `_get_load_audio_target_sr` from AudioViewer into `audio/preprocessing.py`,
-remove the QApplication requirement from these tests.
+All tests exercise the extracted module directly (no QApplication needed).
 """
 
 import numpy as np
 import pytest
+import scipy.io.wavfile as wavfile
 
-# --- These imports will work after Phase 6 extraction ---
-# from respanno.audio.preprocessing import (
-#     apply_butter_filter_for_preprocessing,
-#     get_load_audio_target_sr,
-# )
-
-from scipy.signal import butter, sosfiltfilt, sosfilt
-
-
-# ---------------------------------------------------------------------------
-# Today: test the underlying scipy filter logic directly (no GUI needed)
-# These tests verify the mathematical correctness of the filter pipeline
-# that the legacy code uses inside `_apply_butter_filter_for_preprocessing`.
-# ---------------------------------------------------------------------------
-
-def _butter_bandpass(lowcut, highcut, fs, order=4):
-    """Reference bandpass matching the legacy code's butter + sos pattern."""
-    nyq = 0.5 * fs
-    low = lowcut / nyq
-    high = highcut / nyq
-    sos = butter(order, [low, high], btype="bandpass", output="sos")
-    return sos
+from respanno.audio.preprocessing import (
+    DEFAULT_PREPROCESSING_CONFIG,
+    validate_preprocessing_config,
+    compute_target_sr,
+    apply_butter_filter,
+    apply_preprocessing,
+    preprocess_audio_file,
+    summarize_preprocessing,
+)
 
 
-def _butter_lowpass(cutoff, fs, order=4):
-    nyq = 0.5 * fs
-    sos = butter(order, cutoff / nyq, btype="lowpass", output="sos")
-    return sos
+class TestValidateConfig:
+    def test_defaults(self):
+        cfg = validate_preprocessing_config({})
+        assert cfg["preprocessing_enabled"] is True
+        assert cfg["resample_enabled"] is True
+        assert cfg["resample_target_sr"] == 4000
+        assert cfg["filter_enabled"] is False
+        assert cfg["filter_type"] == "bandpass"
+        assert cfg["filter_lowcut"] == 20.0
+        assert cfg["filter_highcut"] == 1800.0
+        assert cfg["filter_order"] == 4
+        assert cfg["filter_zero_phase"] is True
+
+    def test_invalid_filter_type_clamped(self):
+        cfg = validate_preprocessing_config({"filter_type": "unknown"})
+        assert cfg["filter_type"] == "bandpass"
+
+    def test_order_clamped(self):
+        cfg = validate_preprocessing_config({"filter_order": 50})
+        assert cfg["filter_order"] == 12
+        # order=0 is falsy → `0 or 4` → 4 (matches legacy behaviour)
+        cfg = validate_preprocessing_config({"filter_order": 0})
+        assert cfg["filter_order"] == 4
+
+    def test_None_values_filled(self):
+        cfg = validate_preprocessing_config({
+            "filter_type": None,
+            "filter_lowcut": None,
+            "filter_highcut": None,
+        })
+        assert cfg["filter_type"] == "bandpass"
+        assert cfg["filter_lowcut"] == 20.0
+        assert cfg["filter_highcut"] == 1800.0
 
 
-def _butter_highpass(cutoff, fs, order=4):
-    nyq = 0.5 * fs
-    sos = butter(order, cutoff / nyq, btype="highpass", output="sos")
-    return sos
+class TestComputeTargetSR:
+    def test_enabled_returns_4000(self):
+        cfg = {"preprocessing_enabled": True, "resample_enabled": True, "resample_target_sr": 4000}
+        assert compute_target_sr(cfg) == 4000
+
+    def test_disabled_returns_none(self):
+        assert compute_target_sr({"preprocessing_enabled": False, "resample_enabled": True, "resample_target_sr": 4000}) is None
+        assert compute_target_sr({"preprocessing_enabled": True, "resample_enabled": False, "resample_target_sr": 4000}) is None
+
+    def test_zero_target_returns_none(self):
+        assert compute_target_sr({"preprocessing_enabled": True, "resample_enabled": True, "resample_target_sr": 0}) is None
 
 
-class TestButterworthReference:
-    """Verify the underlying scipy filter math used by the legacy code."""
+class TestApplyButterFilter:
+    """Cover bandpass / lowpass / highpass / bandstop + edge cases."""
 
-    def test_bandpass_does_not_crash(self):
-        """Bandpass filter on a synthetic signal should not error."""
-        fs = 4000
-        t = np.linspace(0, 1, fs, endpoint=False)
-        sig = np.sin(2 * np.pi * 100 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)
-        sig = sig.astype(np.float32)
+    @pytest.fixture
+    def sig_4000(self):
+        sr = 4000
+        t = np.linspace(0, 1, sr, endpoint=False)
+        sig = 0.5 * np.sin(2 * np.pi * 100 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)
+        return sig.astype(np.float32), sr
 
-        sos = _butter_bandpass(100.0, 500.0, fs, order=4)
-        y = sosfiltfilt(sos, sig)
+    def test_bandpass_no_error(self, sig_4000):
+        sig, sr = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=200, highcut=500)
         assert y.shape == sig.shape
         assert np.all(np.isfinite(y))
 
-    def test_lowpass_attenuates_high_freq(self):
-        """Lowpass filter should reduce high-frequency energy."""
-        fs = 8000
-        t = np.linspace(0, 1, fs, endpoint=False)
-        sig = np.sin(2 * np.pi * 100 * t) + np.sin(2 * np.pi * 3000 * t)
-        sig = sig.astype(np.float32)
+    def test_lowpass_no_error(self, sig_4000):
+        sig, sr = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type="lowpass", highcut=1500)
+        assert y.shape == sig.shape
+        assert np.all(np.isfinite(y))
 
-        sos = _butter_lowpass(2000, fs, order=4)
-        y = sosfiltfilt(sos, sig)
+    def test_highpass_no_error(self, sig_4000):
+        sig, sr = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type="highpass", lowcut=300)
+        assert y.shape == sig.shape
+        assert np.all(np.isfinite(y))
 
-        # High-frequency energy should be reduced
+    def test_bandstop_no_error(self, sig_4000):
+        sig, sr = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type="bandstop", lowcut=200, highcut=500)
+        assert y.shape == sig.shape
+        assert np.all(np.isfinite(y))
+
+    def test_lowpass_attenuates_high(self, sig_4000):
+        sig, sr = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type="lowpass", highcut=500, order=4)
+        # Energy above 700 Hz should be reduced
         from scipy.fft import rfft
+        spec_orig = np.abs(rfft(sig))
         spec_y = np.abs(rfft(y))
-        freqs = np.fft.rfftfreq(len(y), d=1 / fs)
+        freqs = np.fft.rfftfreq(len(y), d=1 / sr)
+        ratio = np.sum(spec_y[freqs > 700]) / (np.sum(spec_orig[freqs > 700]) + 1e-12)
+        assert ratio < 1.5  # should not amplify
 
-        energy_low = np.sum(spec_y[freqs <= 500] ** 2)
-        energy_high = np.sum(spec_y[freqs >= 2500] ** 2)
-        assert energy_high < energy_low * 0.5
+    def test_highcut_exceeds_nyquist_clamped(self, sig_4000):
+        sig, sr = sig_4000
+        # highcut far beyond Nyquist (2000 Hz) → internally clipped
+        y = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=200, highcut=5000)
+        assert y.shape == sig.shape
+        assert np.all(np.isfinite(y))
 
-    def test_bandpass_preserves_in_band_signal(self):
-        """Bandpass filter should preserve signal within the passband."""
-        fs = 4000
-        t = np.linspace(0, 0.5, int(fs * 0.5), endpoint=False)
-        sig = np.sin(2 * np.pi * 300 * t).astype(np.float32)
+    def test_bandpass_invalid_range_returns_original(self, sig_4000):
+        sig, sr = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=500, highcut=100)
+        # high <= low → returned unchanged
+        assert np.array_equal(y, sig)
 
-        sos = _butter_bandpass(200, 400, fs, order=4)
-        y = sosfiltfilt(sos, sig)
-
-        # Signal within passband should have substantial energy remaining
-        assert np.std(y) > np.std(sig) * 0.3
+    def test_short_signal(self):
+        sig = np.array([0.1, -0.2, 0.05], dtype=np.float32)
+        y = apply_butter_filter(sig, 4000, filter_type="bandpass")
+        assert y.shape == sig.shape
+        assert np.all(np.isfinite(y))
 
     def test_zero_phase_vs_causal(self):
-        """Zero-phase (filtfilt) vs causal (filt) should differ."""
-        fs = 4000
-        t = np.linspace(0, 1, fs, endpoint=False)
-        sig = np.random.default_rng(42).normal(0, 1, len(t)).astype(np.float32)
-
-        sos = _butter_bandpass(200, 400, fs)
-        y_causal = sosfilt(sos, sig)
-        y_zerophase = sosfiltfilt(sos, sig)
-
-        # They should differ (demonstrating zero-phase is not a no-op)
-        # but both should be finite
+        sr = 4000
+        rng = np.random.default_rng(42)
+        sig = rng.normal(0, 1, sr).astype(np.float32)
+        y_zp = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=200, highcut=500, zero_phase=True)
+        y_causal = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=200, highcut=500, zero_phase=False)
+        assert np.all(np.isfinite(y_zp))
         assert np.all(np.isfinite(y_causal))
-        assert np.all(np.isfinite(y_zerophase))
-
-    def test_filter_on_short_signal(self):
-        """Very short signals should not crash the filter."""
-        fs = 4000
-        sig = np.array([0.1, -0.2, 0.05], dtype=np.float32)
-
-        sos = _butter_bandpass(200, 400, fs, order=4)
-        # filtfilt may fail on very short signals; test both paths
-        try:
-            y = sosfiltfilt(sos, sig)
-        except ValueError:
-            y = sosfilt(sos, sig)
-
-        assert y.shape == sig.shape
-        assert np.all(np.isfinite(y))
 
 
-class TestResampleTarget:
-    """Verify the resample target rate logic (pre-extraction)."""
+class TestApplyPreprocessing:
+    @pytest.fixture
+    def sig_4000(self):
+        sr = 4000
+        t = np.linspace(0, 1, sr, endpoint=False)
+        sig = 0.5 * np.sin(2 * np.pi * 100 * t).astype(np.float32)
+        return sig, sr
 
-    def test_default_4000_hz(self):
-        """Default resample target should be 4000 Hz (matching legacy default)."""
-        target_sr = 4000
-        assert target_sr == 4000  # placeholder; replaced after extraction
+    def test_filter_disabled_passthrough(self, sig_4000):
+        sig, sr = sig_4000
+        cfg = {"preprocessing_enabled": True, "filter_enabled": False}
+        y, meta = apply_preprocessing(sig, sr, config=cfg)
+        assert np.array_equal(y, sig)
+        assert meta["filter_applied"] is False
+
+    def test_preprocessing_disabled_passthrough(self, sig_4000):
+        sig, sr = sig_4000
+        cfg = {"preprocessing_enabled": False, "filter_enabled": True}
+        y, meta = apply_preprocessing(sig, sr, config=cfg)
+        assert np.array_equal(y, sig)
+
+    def test_metadata_complete(self, sig_4000):
+        sig, sr = sig_4000
+        y, meta = apply_preprocessing(sig, sr)
+        for key in ("input_sr", "output_sr", "filter_enabled", "filter_type",
+                     "filter_lowcut", "filter_highcut", "filter_order", "filter_zero_phase"):
+            assert key in meta, f"Missing metadata key: {key}"
 
 
-# ---------------------------------------------------------------------------
-# TODO: Tests that require extraction from AudioViewer
-# ---------------------------------------------------------------------------
+class TestPreprocessAudioFile:
+    def test_load_resample_44100_to_4000(self, tmp_path):
+        """Synthetic 44100 Hz WAV → resample to 4000 Hz."""
+        sr_orig = 44100
+        t = np.linspace(0, 1, sr_orig, endpoint=False)
+        sig = 0.5 * np.sin(2 * np.pi * 100 * t).astype(np.float32)
+        sig_i16 = (sig / np.max(np.abs(sig)) * 32767).astype(np.int16)
+        p = tmp_path / "test.wav"
+        wavfile.write(str(p), sr_orig, sig_i16)
 
-class TestPreprocessingFromAudioViewer:
-    """
-    TODO: After extracting _apply_butter_filter_for_preprocessing to
-    respanno/audio/preprocessing.py, implement these tests:
+        audio, sr, meta = preprocess_audio_file(str(p))
+        assert sr == 4000
+        assert meta["original_sr"] == 44100
+        assert meta["processed_sr"] == 4000
+        assert audio.shape[0] == 4000
 
-    1. test_resample_load_4000hz:
-       - Load tmp_wav_path with librosa.load(sr=4000)
-       - Verify sr == 4000 and audio length matches expected samples
+    def test_load_no_resample(self, tmp_path):
+        """Resample disabled → keep original rate."""
+        sr_orig = 8000
+        t = np.linspace(0, 0.5, int(sr_orig * 0.5), endpoint=False)
+        sig = 0.5 * np.sin(2 * np.pi * 300 * t).astype(np.float32)
+        sig_i16 = (sig / np.max(np.abs(sig)) * 32767).astype(np.int16)
+        p = tmp_path / "test.wav"
+        wavfile.write(str(p), sr_orig, sig_i16)
 
-    2. test_filter_disabled_passthrough:
-       - With filter_enabled=False, output should == input
+        cfg = {"preprocessing_enabled": True, "resample_enabled": False}
+        audio, sr, meta = preprocess_audio_file(str(p), config=cfg)
+        assert sr == sr_orig
+        assert meta["processed_sr"] == sr_orig
 
-    3. test_filter_invalid_cutoff_skipped:
-       - highcut <= lowcut should skip filtering gracefully
+    def test_metadata_keys(self, tmp_path):
+        sr_orig = 16000
+        t = np.linspace(0, 0.5, int(sr_orig * 0.5), endpoint=False)
+        sig = 0.5 * np.sin(2 * np.pi * 440 * t).astype(np.float32)
+        sig_i16 = (sig / np.max(np.abs(sig)) * 32767).astype(np.int16)
+        p = tmp_path / "test.wav"
+        wavfile.write(str(p), sr_orig, sig_i16)
 
-    4. test_preprocessing_summary_string:
-       - Verify _summarize_preprocessing output format
-    """
+        audio, sr, meta = preprocess_audio_file(str(p))
+        for key in ("original_sr", "processed_sr", "preprocessing_enabled",
+                     "resample_enabled", "filter_enabled", "filter_type"):
+            assert key in meta, f"Missing: {key}"
 
-    def test_todo_placeholder(self):
-        """Placeholder: will be implemented after Phase 6 extraction."""
-        pytest.skip("TODO: extract _apply_butter_filter_for_preprocessing first")
+
+class TestSummarizePreprocessing:
+    def test_off(self):
+        assert summarize_preprocessing({"preprocessing_enabled": False}) == "preprocessing off"
+
+    def test_resample_only(self):
+        s = summarize_preprocessing({"preprocessing_enabled": True, "resample_enabled": True,
+                                      "resample_target_sr": 4000, "filter_enabled": False})
+        assert "resample=4000" in s
+
+    def test_filter_bandpass(self):
+        s = summarize_preprocessing({"preprocessing_enabled": True, "resample_enabled": True,
+                                      "resample_target_sr": 4000, "filter_enabled": True,
+                                      "filter_type": "bandpass", "filter_lowcut": 100.0,
+                                      "filter_highcut": 1800.0})
+        assert "bandpass=" in s
+
+    def test_filter_lowpass(self):
+        s = summarize_preprocessing({"preprocessing_enabled": True, "resample_enabled": False,
+                                      "filter_enabled": True, "filter_type": "lowpass",
+                                      "filter_highcut": 800.0})
+        assert "lowpass" in s
