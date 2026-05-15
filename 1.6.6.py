@@ -4431,46 +4431,25 @@ class AudioViewer(QMainWindow):
             return
 
         try:
-            import csv
-            with open(path, "w", newline="", encoding="utf-8") as f:
-                w = csv.writer(f)
-                # 改为导出四列表头：start, end, label, source
-                w.writerow(["start", "end", "label", "source"])
-                for item in rows:
-                    try:
-                        start = float(item[0])
-                        end = float(item[1])
-                        label = str(item[2])
-                        # 兼容 3/4 元组：3 元组视为人工标记，source="manual"
-                        if len(item) >= 4:
-                            source = str(item[3])
-                        else:
-                            source = "manual"
-                    except Exception:
-                        # 非法行直接跳过
-                        continue
-                    w.writerow([f"{start:.4f}", f"{end:.4f}", label, source])
+            from respanno.labels.annotation_io import write_annotations
 
+            ann_dicts = []
+            for item in rows:
+                try:
+                    s, e, lab = float(item[0]), float(item[1]), str(item[2])
+                    src = str(item[3]) if len(item) >= 4 else "manual"
+                    ann_dicts.append({"start": s, "end": e, "label": lab, "source": src})
+                except Exception:
+                    continue
+
+            write_annotations(path, ann_dicts)
 
             # === VERIFY: 导出 source 校验 (可在控制台查看) ===
             try:
                 mem_src = {}
-                for _it in rows:
-                    try:
-                        _src = str(_it[3]) if len(_it) >= 4 else "manual"
-                    except Exception:
-                        _src = "manual"
-                    mem_src[_src] = mem_src.get(_src, 0) + 1
-
-                file_src = {}
-                with open(path, "r", encoding="utf-8") as _rf:
-                    _rr = csv.DictReader(_rf)
-                    for _r in _rr:
-                        _s = (_r.get("source") or "").strip()
-                        file_src[_s] = file_src.get(_s, 0) + 1
-
+                for d in ann_dicts:
+                    mem_src[d["source"]] = mem_src.get(d["source"], 0) + 1
                 print("[VERIFY][EXPORT] sources in memory:", mem_src)
-                print("[VERIFY][EXPORT] sources in exported file:", file_src)
             except Exception as _e:
                 print("[VERIFY][EXPORT] source check failed:", _e)
 
@@ -5147,52 +5126,29 @@ class AudioViewer(QMainWindow):
             return
 
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import Annotations", "", "Annotation Files (*.csv *.txt);;All Files (*)"
+            self, "Import Annotations", "", "Annotation Files (*.csv *.txt *.json);;All Files (*)"
         )
         if not path:
             return
 
         try:
-            # 判断扩展名
-            ext = path.split('.')[-1].lower()
-            if ext not in ['csv', 'txt']:
-                raise ValueError("Unsupported file format. Please import a .csv or .txt file.")
+            from respanno.labels.annotation_io import read_annotations
 
-            with open(path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
+            cfg = self._get_auto_label_import_settings()
+            rows = read_annotations(path, cfg)
 
-            new_annotations = []
-
-            for line in lines[1:]:  # 跳过表头
-                line = line.strip()
-                if not line:
-                    continue
-
-                # 自动选择分隔符
-                if ',' in line:
-                    parts = line.split(',')
-                elif '\t' in line:
-                    parts = line.split('\t')
-                elif ' ' in line:
-                    parts = line.split()
-                else:
-                    continue  # 不能解析的行跳过
-
-                if len(parts) < 3:
-                    continue
-
-                try:
-                    start, end = float(parts[0]), float(parts[1])
-                    text = parts[2]
-                    new_annotations.append((start, end, text))
-                except ValueError:
-                    continue  # 非法数值跳过
+            if not rows:
+                QMessageBox.information(self, "Notice", "No annotations found in the file.")
+                return
 
             self.clear_annotations()
-            for start, end, text in new_annotations:
-                self.finalize_annotation(start, end, text)
+            for ann in rows:
+                self.finalize_annotation(
+                    ann["start"], ann["end"], ann["label"],
+                    source=ann.get("source", "manual"),
+                )
 
-            QMessageBox.information(self, "Success", f"Successfully imported {len(new_annotations)} annotations.")
+            QMessageBox.information(self, "Success", f"Successfully imported {len(rows)} annotations.")
 
         except Exception as e:
             QMessageBox.critical(self, "Import Failed", f"An error occurred while reading the file:\n{str(e)}")
@@ -5499,46 +5455,15 @@ class AudioViewer(QMainWindow):
         return rows
 
     def _parse_events_file(self, events_path: str):
+        """解析自动导入的 events 文件，返回标准 annotation dict 列表。
+
+        委托 respanno.labels.annotation_io.read_annotations，支持 csv / txt / json，
+        默认配置保持旧行为：自动分隔符，前 3 列 start/end/label，第 4 列 source 可选。
         """
-        解析自动导入的 events 文件，返回 rows: [(start, end, label, source), ...]
-        - 支持 csv / txt / json
-        - 支持 Settings 中配置分隔符、跳过表头行、列含义和 JSON 键名
-        - 默认配置保持旧行为：自动分隔符，前 3 列 start/end/label，第 4 列 source 可选
-        """
-        content = self._read_text_file_flexible(events_path)
-        if not content:
-            return []
+        from respanno.labels.annotation_io import read_annotations
 
         cfg = self._get_auto_label_import_settings()
-        fmt = str(cfg.get("file_format", "auto")).strip().lower()
-        ext = os.path.splitext(str(events_path))[1].lower().lstrip(".")
-        if fmt == "auto":
-            fmt = ext if ext in {"csv", "txt", "json"} else "txt"
-
-        if fmt == "json":
-            return self._parse_events_json_content(content)
-
-        rows = []
-        try:
-            skip_n = int(cfg.get("skip_header_lines", 0))
-        except Exception:
-            skip_n = 0
-
-        for line_idx, raw in enumerate(content.splitlines()):
-            if line_idx < skip_n:
-                continue
-            line = raw.strip()
-            if not line:
-                continue
-
-            parts = self._split_label_line_by_settings(line)
-            row = self._annotation_row_from_sequence(parts)
-            if row is None:
-                # 表头或非法行：静默跳过，保持旧逻辑。
-                continue
-            rows.append(row)
-
-        return rows
+        return read_annotations(events_path, cfg)
 
 
     def _parse_events_file_cached(self, events_path: str):
@@ -5576,13 +5501,12 @@ class AudioViewer(QMainWindow):
             return
 
         n_ok = 0
-        for s, e, lab, src in rows:
+        for ann in rows:
             try:
+                s, e, lab = float(ann["start"]), float(ann["end"]), str(ann["label"])
+                src = str(ann.get("source", "manual") or "manual")
                 if e <= s:
                     continue
-                # source 仅用于追溯Display；异常值统一回落到 manual
-                if not src:
-                    src = "manual"
                 self.finalize_annotation(s, e, lab, source=src)
                 n_ok += 1
             except Exception:
