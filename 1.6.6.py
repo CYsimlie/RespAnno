@@ -3741,121 +3741,72 @@ class AudioViewer(QMainWindow):
 
         dlg.exec_()
 
+    def _build_preprocessing_config(self):
+        """Build a preprocessing config dict from GUI attributes.
+
+        Bridges naming differences: the GUI stores ``resample_on_load_enabled``
+        and ``filter_on_load_enabled``, while the preprocessing module expects
+        ``resample_enabled`` and ``filter_enabled``.
+        """
+        return {
+            "preprocessing_enabled": bool(getattr(self, "preprocessing_enabled", True)),
+            "resample_enabled": bool(getattr(self, "resample_on_load_enabled", False)),
+            "resample_target_sr": int(getattr(self, "resample_target_sr", 4000)),
+            "filter_enabled": bool(getattr(self, "filter_on_load_enabled", False)),
+            "filter_type": str(getattr(self, "filter_type", "bandpass") or "bandpass"),
+            "filter_lowcut": float(getattr(self, "filter_lowcut", 20.0) or 20.0),
+            "filter_highcut": float(getattr(self, "filter_highcut", 1800.0) or 1800.0),
+            "filter_order": int(getattr(self, "filter_order", 4) or 4),
+            "filter_zero_phase": bool(getattr(self, "filter_zero_phase", True)),
+        }
+
     def _get_load_audio_target_sr(self):
-        """返回 load_audio 应使用的目标采样率。None 表示保持原采样率。"""
-        try:
-            if not bool(getattr(self, "preprocessing_enabled", True)):
-                return None
-            if not bool(getattr(self, "resample_on_load_enabled", False)):
-                return None
-            sr = int(getattr(self, "resample_target_sr", 0))
-            if sr <= 0:
-                return None
-            return sr
-        except Exception:
-            return None
+        """Return target sample rate for audio loading, or None to preserve original."""
+        from respanno.audio.preprocessing import compute_target_sr
+
+        cfg = self._build_preprocessing_config()
+        return compute_target_sr(cfg)
 
     def _apply_butter_filter_for_preprocessing(self, audio, sr):
-        """Apply optional Butterworth filtering for preprocessing.
+        """Apply optional Butterworth filtering, delegating to preprocessing module.
 
-        This function only processes the numpy audio array. It does not touch Qt widgets.
-        It is intentionally conservative: invalid cutoff settings are clipped or skipped
-        rather than crashing file loading.
+        GUI-level wrapper: handles enable-check and status-bar error reporting;
+        the core DSP is in respanno.audio.preprocessing.apply_butter_filter.
         """
         if audio is None or sr is None:
             return audio
-        if not bool(getattr(self, "preprocessing_enabled", True)):
+
+        cfg = self._build_preprocessing_config()
+        if not cfg["preprocessing_enabled"] or not cfg["filter_enabled"]:
             return audio
-        if not bool(getattr(self, "filter_on_load_enabled", False)):
-            return audio
+
+        from respanno.audio.preprocessing import apply_butter_filter
 
         try:
-            from scipy.signal import butter, sosfilt, sosfiltfilt
+            return apply_butter_filter(
+                audio,
+                sr=sr,
+                filter_type=cfg["filter_type"],
+                lowcut=cfg["filter_lowcut"],
+                highcut=cfg["filter_highcut"],
+                order=cfg["filter_order"],
+                zero_phase=cfg["filter_zero_phase"],
+            )
         except Exception as e:
             try:
-                self.statusBar().showMessage(f"Filter skipped: scipy.signal is unavailable ({e})", 3000)
-            except Exception:
-                pass
-            return audio
-
-        try:
-            x = np.asarray(audio, dtype=np.float32)
-            fs = float(sr)
-            nyq = fs / 2.0
-            if nyq <= 0 or x.size < 4:
-                return audio
-
-            ftype = str(getattr(self, "filter_type", "bandpass") or "bandpass").lower()
-            if ftype not in {"bandpass", "lowpass", "highpass", "bandstop"}:
-                ftype = "bandpass"
-
-            low = float(getattr(self, "filter_lowcut", 20.0) or 20.0)
-            high = float(getattr(self, "filter_highcut", 1800.0) or 1800.0)
-            order = int(getattr(self, "filter_order", 4) or 4)
-            order = max(1, min(12, order))
-
-            # Leave a small safety margin below Nyquist to avoid unstable filters.
-            hi_max = max(1e-6, 0.98 * nyq)
-
-            if ftype == "lowpass":
-                high = min(max(high, 1e-6), hi_max)
-                wn = high / nyq
-                sos = butter(order, wn, btype="lowpass", output="sos")
-            elif ftype == "highpass":
-                low = min(max(low, 1e-6), hi_max)
-                wn = low / nyq
-                sos = butter(order, wn, btype="highpass", output="sos")
-            else:
-                low = min(max(low, 1e-6), hi_max)
-                high = min(max(high, 1e-6), hi_max)
-                if high <= low:
-                    # Invalid band setting: skip filtering rather than breaking audio loading.
-                    try:
-                        self.statusBar().showMessage("Filter skipped: high cutoff must be greater than low cutoff.", 3000)
-                    except Exception:
-                        pass
-                    return audio
-                wn = [low / nyq, high / nyq]
-                sos = butter(order, wn, btype=ftype, output="sos")
-
-            if bool(getattr(self, "filter_zero_phase", True)):
-                try:
-                    y = sosfiltfilt(sos, x).astype(np.float32, copy=False)
-                except Exception:
-                    # Very short signals may fail filtfilt pad length; fall back to causal filtering.
-                    y = sosfilt(sos, x).astype(np.float32, copy=False)
-            else:
-                y = sosfilt(sos, x).astype(np.float32, copy=False)
-            return y
-        except Exception as e:
-            try:
-                self.statusBar().showMessage(f"Filter skipped: {e}", 3000)
+                self.statusBar().showMessage(
+                    f"Filter skipped: {e}", 3000,
+                )
             except Exception:
                 pass
             return audio
 
     def _summarize_preprocessing(self):
-        """Human-readable preprocessing summary for the window title/status bar."""
-        if not bool(getattr(self, "preprocessing_enabled", True)):
-            return "preprocessing off"
-        parts = []
-        try:
-            if bool(getattr(self, "resample_on_load_enabled", False)):
-                parts.append(f"resample={int(getattr(self, 'resample_target_sr', 0))} Hz")
-        except Exception:
-            pass
-        try:
-            if bool(getattr(self, "filter_on_load_enabled", False)):
-                ftype = str(getattr(self, "filter_type", "bandpass"))
-                if ftype in {"bandpass", "bandstop"}:
-                    parts.append(f"{ftype}={float(getattr(self, 'filter_lowcut', 0)):.1f}-{float(getattr(self, 'filter_highcut', 0)):.1f} Hz")
-                elif ftype == "lowpass":
-                    parts.append(f"lowpass<={float(getattr(self, 'filter_highcut', 0)):.1f} Hz")
-                elif ftype == "highpass":
-                    parts.append(f"highpass>={float(getattr(self, 'filter_lowcut', 0)):.1f} Hz")
-        except Exception:
-            pass
-        return "; ".join(parts) if parts else "preprocessing on"
+        """Human-readable preprocessing summary, delegating to preprocessing module."""
+        from respanno.audio.preprocessing import summarize_preprocessing
+
+        cfg = self._build_preprocessing_config()
+        return summarize_preprocessing(cfg)
 
     def load_audio(self, path=None):
         """Load one WAV file.
@@ -3914,16 +3865,18 @@ class AudioViewer(QMainWindow):
 
             self.audio_original_sr = None
             try:
-                self.audio_original_sr = int(librosa.get_samplerate(path))
+                from respanno.audio.preprocessing import get_original_sr
+
+                self.audio_original_sr = int(get_original_sr(path))
             except Exception:
                 self.audio_original_sr = None
 
             target_sr = self._get_load_audio_target_sr()
             # librosa.load(..., sr=target_sr) uses band-limited resampling internally,
             # so anti-aliasing is handled by librosa when downsampling.
-            self.audio, self.sr = librosa.load(path, sr=target_sr)
-            if self.sr is None or self.sr <= 0 or self.audio is None or len(self.audio) == 0:
-                raise ValueError("Empty or invalid audio data.")
+            from respanno.audio.preprocessing import load_audio_file
+
+            self.audio, self.sr = load_audio_file(path, target_sr=target_sr)
 
             # Optional analysis/display band filtering after loading/resampling.
             self.audio = self._apply_butter_filter_for_preprocessing(self.audio, self.sr)
