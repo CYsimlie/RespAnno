@@ -3962,50 +3962,26 @@ class AudioViewer(QMainWindow):
         self.statusBar().showMessage("Audio loaded. FFT and short-time features will be computed on demand.", 2500)
 
     def _decimate_spec_for_display(self, spec):
-        """Return a smaller freq×time spectrogram for display only.
+        """Downsample (freq × time) spectrogram for display, delegating to module."""
+        from respanno.dsp.spectrogram import decimate_spec_for_display
 
-        This does not change audio, annotations, or ML features. It only reduces
-        the matrix passed to ImageItem.setImage(), which makes previous/next
-        switching smoother on long recordings.
-        """
-        try:
-            spec = np.asarray(spec)
-            if spec.ndim != 2:
-                return spec
-            max_t = int(getattr(self, "_spec_display_max_time_bins", 2500))
-            max_f = int(getattr(self, "_spec_display_max_freq_bins", 512))
-            f_bins, t_bins = spec.shape
-            if max_f > 0 and f_bins > max_f:
-                idx_f = np.linspace(0, f_bins - 1, max_f).astype(int)
-                spec = spec[idx_f, :]
-            if max_t > 0 and spec.shape[1] > max_t:
-                idx_t = np.linspace(0, spec.shape[1] - 1, max_t).astype(int)
-                spec = spec[:, idx_t]
-            return spec
-        except Exception:
-            return spec
+        return decimate_spec_for_display(
+            spec,
+            max_time_bins=int(getattr(self, "_spec_display_max_time_bins", 2500)),
+            max_freq_bins=int(getattr(self, "_spec_display_max_freq_bins", 512)),
+        )
 
     def update_spectrogram(self):
         if self.audio is None:
             return
 
-        # 有效最高频率不能超过 Nyquist。默认重采样到 4000 Hz 时，f_max=2000 正好匹配。
-        try:
-            f_max_eff = min(float(self.f_max), float(self.sr) / 2.0)
-        except Exception:
-            f_max_eff = float(self.f_max)
+        from respanno.dsp.spectrogram import compute_stft_db
 
-        D = librosa.stft(self.audio, n_fft=self.n_fft, hop_length=self.hop_length,
-                         center=True, pad_mode='reflect')
-        S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
-        freqs = librosa.fft_frequencies(sr=self.sr, n_fft=self.n_fft)
-        idx = freqs <= f_max_eff
-        if np.any(idx):
-            S_db = S_db[idx, :]
-            f_max = float(freqs[idx][-1])
-        else:
-            f_max = float(freqs[-1]) if len(freqs) else f_max_eff
-        spec = S_db
+        spec, freqs = compute_stft_db(
+            self.audio, self.sr,
+            n_fft=self.n_fft, hop_length=self.hop_length, f_max=self.f_max,
+        )
+        f_max = float(freqs[-1]) if len(freqs) else float(min(self.f_max, self.sr / 2.0))
 
         # 保存完整谱值用于 Settings 直方图；显示用谱图可以抽稀。
         self._last_spec_vals = spec.copy()
@@ -6237,52 +6213,18 @@ class AudioViewer(QMainWindow):
             pass
 
     def _get_palette_256(self, name: str) -> np.ndarray:
-        """返回 (256,3) 的 0~1 RGB 调色板，仅支持 'Heatmap' / 'Grayscale'。"""
+        """Return (256,3) float32 RGB palette, delegating to spectrogram module."""
+        from respanno.dsp.spectrogram import get_palette_256
 
-        def _interp(points):
-            pos = np.array([p[0] for p in points], float)
-            col = np.array([p[1] for p in points], float)
-            xs = np.linspace(0, 1, 256)
-            out = np.empty((256, 3), float)
-            for k in range(3):
-                out[:, k] = np.interp(xs, pos, col[:, k])
-            return np.clip(out, 0.0, 1.0)
-
-        if name == "Heatmap":
-            # viridis 风格：紫→靛→青绿→黄绿→亮黄 (近似)
-            pts = [
-                (0.00, (68 / 255, 1 / 255, 84 / 255)),
-                (0.25, (59 / 255, 82 / 255, 139 / 255)),
-                (0.50, (33 / 255, 145 / 255, 140 / 255)),
-                (0.75, (94 / 255, 201 / 255, 98 / 255)),
-                (1.00, (253 / 255, 231 / 255, 37 / 255)),
-            ]
-            return _interp(pts)
-
-        # Grayscale
-        g = np.linspace(0, 1, 256)
-        return np.stack([g, g, g], axis=1)
+        return get_palette_256(name)
 
     def _colorize_spec_with_window(self, Z2d: np.ndarray) -> np.ndarray:
-        """把 2D 谱值按 stft_vmin/vmax 开窗后着色成 uint8 RGB(H,W,3)。"""
-        Z = np.asarray(Z2d, float)
-        finite = np.isfinite(Z)
-        if not np.any(finite):
-            return np.zeros((Z.shape[0], Z.shape[1], 3), dtype=np.uint8)
+        """Map 2-D spectrogram to uint8 RGB, delegating to spectrogram module."""
+        from respanno.dsp.spectrogram import colorize_spectrogram
 
-        # 上下限：优先用用户Settings；否则用 1%~99% 分位
-        vmin = self.stft_vmin
-        vmax = self.stft_vmax
-        if vmin is None or vmax is None or not (vmax > vmin):
-            vmin = float(np.percentile(Z[finite], 1))
-            vmax = float(np.percentile(Z[finite], 99))
-            if not (vmax > vmin):
-                vmax = vmin + 1.0
-
-        Zn = np.clip((Z - vmin) / (vmax - vmin), 0.0, 1.0)
-        lut = (self._get_palette_256(self.stft_cmap) * 255.0).astype(np.uint8)  # (256,3)
-        idx = np.clip((Zn * 255.0 + 0.5).astype(np.int16), 0, 255)
-        return lut[idx]  # (H,W,3)
+        return colorize_spectrogram(
+            Z2d, cmap=self.stft_cmap, vmin=self.stft_vmin, vmax=self.stft_vmax,
+        )
 
     def _on_cmap_changed(self, text: str):
         """配色切换：不重算 STFT，只对显示用谱图重着色。"""

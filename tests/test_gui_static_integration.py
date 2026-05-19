@@ -1,7 +1,8 @@
 """Static checks: verify that 1.6.6.py delegates to respanno modules.
 
-Stage 1: annotation_io  (import/export)
-Stage 2: preprocessing  (audio load/filter/summary)
+Stage 1: annotation_io   (import/export)
+Stage 2: preprocessing   (audio load/filter/summary)
+Stage 3: spectrogram     (STFT / decimate / palette / colorize)
 
 These tests do NOT import 1.6.6.py (which would trigger PyQt5 / sounddevice).
 They only scan the source text.
@@ -95,7 +96,7 @@ def test_gui_calls_write_annotations():
 
 
 # ---------------------------------------------------------------------------
-# 3. Stage 2: preprocessing is connected
+# 3. Stage 2: preprocessing is still connected
 # ---------------------------------------------------------------------------
 
 def test_gui_imports_preprocessing():
@@ -139,14 +140,56 @@ def test_gui_calls_preprocessing_functions():
 
 
 # ---------------------------------------------------------------------------
-# 4. spectrogram / features / hsmm are NOT connected yet
+# 4. Stage 3: spectrogram is connected
+# ---------------------------------------------------------------------------
+
+def test_gui_imports_spectrogram():
+    """1.6.6.py must import from respanno.dsp.spectrogram."""
+    tree = _parse_ast(GUI_FILE)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                imports.append(f"{module}.{alias.name}")
+
+    target = "respanno.dsp.spectrogram"
+    found = any(
+        target in imp or imp.startswith("respanno.dsp.spectrogram")
+        for imp in imports
+    )
+    assert found, (
+        f"1.6.6.py must import from {target}\n"
+        f"Found respanno-related imports: {[i for i in imports if 'respanno' in i]}"
+    )
+
+
+def test_gui_calls_spectrogram_functions():
+    """1.6.6.py must call key spectrogram module functions."""
+    src = _tokenized_source(GUI_FILE)
+    required = [
+        "compute_stft_db",
+        "decimate_spec_for_display",
+        "get_palette_256",
+        "colorize_spectrogram",
+    ]
+    missing = [fn for fn in required if fn not in src]
+    assert not missing, (
+        f"1.6.6.py must call these spectrogram functions: {missing}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 5. features / hsmm are NOT connected yet
 # ---------------------------------------------------------------------------
 
 def test_no_early_module_leak():
-    """1.6.6.py must NOT import from spectrogram, features, or hsmm yet."""
+    """1.6.6.py must NOT import from features or hsmm yet."""
     tree = _parse_ast(GUI_FILE)
     forbidden = {
-        "respanno.dsp.spectrogram",
         "respanno.dsp.features",
         "respanno.ml.hsmm",
     }
@@ -157,15 +200,15 @@ def test_no_early_module_leak():
                 if module == forbidden_module or module.startswith(forbidden_module + "."):
                     raise AssertionError(
                         f"1.6.6.py must not import {forbidden_module} yet — "
-                        f"only annotation_io and preprocessing are connected"
+                        f"only annotation_io, preprocessing, and spectrogram are connected"
                     )
 
 
 # ---------------------------------------------------------------------------
-# 5. MLService, BoxSpan, eventFilter are untouched
+# 6. MLService, BoxSpan, eventFilter are untouched
 # ---------------------------------------------------------------------------
 
-ALLOWED_RESPANNO = {"annotation_io", "preprocessing"}
+ALLOWED_RESPANNO = {"annotation_io", "preprocessing", "spectrogram"}
 
 
 def _respanno_refs_in_class(tree: ast.AST, class_name: str) -> list:
