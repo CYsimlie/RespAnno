@@ -2491,267 +2491,54 @@ class MLService:
 
     # ------------------- HSMM helpers (phase only) -------------------
     def _estimate_hop_sec(self, times, viewer=None):
-        """估计帧 hop (秒)。优先使用 viewer.hop_length/sr；否则用Time轴差分。"""
+        """Estimate frame hop in seconds, delegating to hsmm module."""
+        from respanno.ml.hsmm import estimate_hop_sec
+
+        sr = hop_length = None
         try:
-            if viewer is not None and getattr(viewer, "sr", None) and getattr(viewer, "hop_length", None):
-                sr = float(viewer.sr)
-                hop = float(viewer.hop_length)
-                if sr > 0 and hop > 0:
-                    return hop / sr
+            if viewer is not None:
+                sv = getattr(viewer, "sr", None)
+                hv = getattr(viewer, "hop_length", None)
+                if sv is not None and hv is not None and float(sv) > 0 and float(hv) > 0:
+                    sr = float(sv)
+                    hop_length = float(hv)
         except Exception:
             pass
-        try:
-            dt = np.diff(np.asarray(times, dtype=float))
-            dt = dt[np.isfinite(dt) & (dt > 0)]
-            if dt.size:
-                return float(np.median(dt))
-        except Exception:
-            pass
-        return 0.05
+        return estimate_hop_sec(times=times, sr=sr, hop_length=hop_length)
 
     def _estimate_breath_cycle_sec(self, seg_I, seg_E):
-        """用人工标注估计呼吸周期 (秒)：优先使用同一相位连续 start 的差分中位数。"""
-        starts = []
-        for segs in (seg_I, seg_E):
-            ss = sorted([float(s) for (s, e) in segs if float(e) > float(s)])
-            if len(ss) >= 2:
-                dif = [ss[i+1] - ss[i] for i in range(len(ss)-1)]
-                dif = [d for d in dif if d > 0.1]
-                if dif:
-                    starts.extend(dif)
-        if starts:
-            return float(np.median(starts))
-        return 3.0
+        """Estimate breath-cycle duration, delegating to hsmm module."""
+        from respanno.ml.hsmm import estimate_breath_cycle_sec
+
+        return estimate_breath_cycle_sec(seg_I, seg_E, default=3.0)
 
     def _build_hsmm_prior_from_prefix_labels(self, y_prefix, classes_, state_id_to_name, hop_sec, cycle_sec):
-        """从前缀帧标签统计持续Time范围 (帧)。classes_ 为 sklearn 的 classes_ 顺序。"""
-        classes = [int(c) for c in np.asarray(classes_).tolist()]
-        y = np.asarray(y_prefix, dtype=int)
+        """Build HSMM duration priors, delegating to hsmm module."""
+        from respanno.ml.hsmm import build_hsmm_prior_from_prefix_labels
 
-        # 统计每个状态的连续 run-length (帧)
-        runs = {c: [] for c in classes}
-        if y.size:
-            cur = int(y[0])
-            ln = 1
-            for v in y[1:]:
-                v = int(v)
-                if v == cur:
-                    ln += 1
-                else:
-                    if cur in runs:
-                        runs[cur].append(int(ln))
-                    cur = v
-                    ln = 1
-            if cur in runs:
-                runs[cur].append(int(ln))
-
-        # 默认范围 (秒)
-        cycle = float(cycle_sec) if (cycle_sec and cycle_sec > 0) else 3.0
-        def_sec = {}
-        # Inspiration / Expiration：按周期给一个较宽的范围
-        def_sec["Inspiration"] = (max(0.10, 0.08 * cycle), max(0.40, 1.20 * cycle))
-        def_sec["Expiration"]  = (max(0.10, 0.08 * cycle), max(0.40, 1.20 * cycle))
-        # Pause：允许更短，也允许更长 (但后面会有 cap)
-        def_sec["Pause"] = (0.05, max(0.30, 0.80 * cycle))
-
-        def sec_to_frames(sec):
-            return max(1, int(round(float(sec) / max(hop_sec, 1e-6))))
-
-        # 估计 dmin/dmax
-        dmin = []
-        dmax = []
-        DMAX_CAP_SEC = 15.0  # 运行时上限，避免 DP 过慢
-        dmax_cap = sec_to_frames(DMAX_CAP_SEC)
-
-        for c in classes:
-            name = str(state_id_to_name.get(int(c), str(c)))
-            arr = np.asarray(runs.get(int(c), []), dtype=float)
-            if arr.size >= 5:
-                mn = int(max(1, round(np.percentile(arr, 5))))
-                mx = int(max(mn, round(np.percentile(arr, 95))))
-            elif arr.size >= 1:
-                mn = int(max(1, np.min(arr)))
-                mx = int(max(mn, np.max(arr) * 2))
-            else:
-                a, b = def_sec.get(name, (0.10, 1.20 * cycle))
-                mn = sec_to_frames(a)
-                mx = sec_to_frames(b)
-
-            mn = int(max(1, mn))
-            mx = int(min(max(mn, mx), dmax_cap))
-            dmin.append(mn)
-            dmax.append(mx)
-
-        return {
-            "classes": classes,
-            "hop_sec": float(hop_sec),
-            "cycle_sec": float(cycle),
-            "dmin_frames": [int(x) for x in dmin],
-            "dmax_frames": [int(x) for x in dmax],
-        }
+        return build_hsmm_prior_from_prefix_labels(
+            y_prefix, classes_, state_id_to_name, hop_sec, cycle_sec,
+        )
 
     def _build_hsmm_log_trans(self, state_names):
-        """构造 HSMM 转移矩阵 (log)。持续Time由 HSMM 负责，转移只做结构约束。"""
-        names = [str(x) for x in state_names]
-        S = len(names)
-        logA = np.full((S, S), -np.inf, dtype=float)
+        """Build HSMM log-transition matrix, delegating to hsmm module."""
+        from respanno.ml.hsmm import build_hsmm_log_trans
 
-        def norm_row(i, js):
-            if not js:
-                return
-            p = 1.0 / float(len(js))
-            for j in js:
-                logA[i, j] = np.log(p)
-
-        if S == 2:
-            # Two-state：允许互转，也允许自环 (用于超出 dmax 的长段拼接)
-            for i in range(2):
-                norm_row(i, [0, 1])
-            return logA
-
-        # 三态 (含 Pause)
-        # 约束：Insp <-> Exp 可直接转，也可经 Pause；Pause 可自环。
-        # 禁止 Insp->Insp 与 Exp->Exp (避免无意义拆段)，Pause 允许 Pause->Pause。
-        # 这里用名称来判定索引
-        idx_pause = None
-        for i, n in enumerate(names):
-            if n.lower() == "pause":
-                idx_pause = i
-                break
-
-        # 兜底：如果找不到 Pause，退化为全连接
-        if idx_pause is None:
-            for i in range(S):
-                norm_row(i, list(range(S)))
-            return logA
-
-        # 识别 Insp/Exp
-        idx_insp = None
-        idx_exp = None
-        for i, n in enumerate(names):
-            if n.lower() == "inspiration":
-                idx_insp = i
-            elif n.lower() == "expiration":
-                idx_exp = i
-
-        # 兜底
-        if idx_insp is None or idx_exp is None:
-            for i in range(S):
-                norm_row(i, list(range(S)))
-            return logA
-
-        # Insp row
-        norm_row(idx_insp, [idx_exp, idx_pause])
-        # Exp row
-        norm_row(idx_exp, [idx_insp, idx_pause])
-        # Pause row
-        norm_row(idx_pause, [idx_insp, idx_exp, idx_pause])
-        return logA
+        return build_hsmm_log_trans(state_names)
 
     def _hsmm_viterbi(self, log_emit, dmin, dmax, log_trans, log_pi):
-        """HSMM Viterbi (显式持续Time)，返回每帧的 state-index (0..S-1)。"""
-        log_emit = np.asarray(log_emit, dtype=float)
-        T, S = log_emit.shape
-        dmin = np.asarray(dmin, dtype=int).reshape(-1)
-        dmax = np.asarray(dmax, dtype=int).reshape(-1)
-        log_trans = np.asarray(log_trans, dtype=float)
-        log_pi = np.asarray(log_pi, dtype=float).reshape(-1)
+        """HSMM Viterbi decoder, delegating to hsmm module."""
+        from respanno.ml.hsmm import hsmm_viterbi
 
-        # cumulative sum for segment likelihood
-        cum = np.zeros((T + 1, S), dtype=float)
-        cum[1:, :] = np.cumsum(log_emit, axis=0)
-
-        def seg_sum(t_end, t_start, s):
-            return cum[t_end, s] - cum[t_start, s]
-
-        neg_inf = -1e300
-        dp = np.full((T + 1, S), neg_inf, dtype=float)
-        bp_state = np.full((T + 1, S), -1, dtype=int)
-        bp_dur = np.full((T + 1, S), 0, dtype=int)
-
-        for t in range(1, T + 1):
-            for s in range(S):
-                best = neg_inf
-                best_p = -1
-                best_d = 0
-                d_lo = int(max(1, dmin[s] if s < len(dmin) else 1))
-                d_hi = int(min(dmax[s] if s < len(dmax) else t, t))
-                if d_hi < d_lo:
-                    d_lo, d_hi = 1, t
-
-                # uniform duration in [d_lo, d_hi]
-                log_dur = -np.log(float(d_hi - d_lo + 1))
-
-                for d in range(d_lo, d_hi + 1):
-                    start = t - d
-                    seg_ll = seg_sum(t, start, s)
-
-                    if start == 0:
-                        score = float(log_pi[s]) + log_dur + seg_ll
-                        prev = -1
-                    else:
-                        prev_scores = dp[start, :] + log_trans[:, s]
-                        prev = int(np.argmax(prev_scores))
-                        score = float(prev_scores[prev]) + log_dur + seg_ll
-
-                    if score > best:
-                        best = score
-                        best_p = prev
-                        best_d = d
-
-                dp[t, s] = best
-                bp_state[t, s] = best_p
-                bp_dur[t, s] = best_d
-
-        # backtrack
-        z = np.zeros(T, dtype=int)
-        s = int(np.argmax(dp[T, :]))
-        t = T
-        while t > 0:
-            d = int(bp_dur[t, s])
-            start = t - d
-            z[start:t] = s
-            s_prev = int(bp_state[t, s])
-            t = start
-            if t <= 0 or s_prev < 0:
-                break
-            s = s_prev
-
-        return z
+        return hsmm_viterbi(log_emit, dmin, dmax, log_trans, log_pi)
 
     def _state_seq_to_segments(self, times, idx_unr, z_state_ids, target_state_id, min_dur_sec):
-        """把未审阅区间的状态序列转换成 (start,end) 段 (用 times 的首尾帧Time)。"""
-        times = np.asarray(times, dtype=float)
-        idx_unr = np.asarray(idx_unr, dtype=int)
-        z = np.asarray(z_state_ids, dtype=int)
-        if idx_unr.size == 0 or z.size == 0:
-            return []
-        assert idx_unr.size == z.size
+        """Convert state sequence to segments, delegating to hsmm module."""
+        from respanno.ml.hsmm import state_seq_to_segments
 
-        segs = []
-        in_run = False
-        start_i = 0
-        for i, sid in enumerate(z):
-            if sid == int(target_state_id) and not in_run:
-                in_run = True
-                start_i = i
-            elif sid != int(target_state_id) and in_run:
-                frame_idxs = idx_unr[start_i:i]
-                s = float(times[frame_idxs[0]])
-                e = float(times[frame_idxs[-1]])
-                if e - s >= float(min_dur_sec):
-                    segs.append((s, e))
-                in_run = False
-
-        if in_run:
-            frame_idxs = idx_unr[start_i:len(z)]
-            s = float(times[frame_idxs[0]])
-            e = float(times[frame_idxs[-1]])
-            if e - s >= float(min_dur_sec):
-                segs.append((s, e))
-
-        return segs
-
+        return state_seq_to_segments(
+            times, idx_unr, z_state_ids, target_state_id, min_dur_sec,
+        )
 
     def train_event_model_for_label(self,
                               label,
