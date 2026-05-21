@@ -1,12 +1,8 @@
 """Static checks: verify that 1.6.6.py delegates to respanno modules.
 
-Stage 1: annotation_io   (import/export)
-Stage 2: preprocessing   (audio load/filter/summary)
-Stage 3: spectrogram     (STFT / decimate / palette / colorize)
-Stage 4: features        (short-time features / build matrix / normalize)
-Stage 5: hsmm            (Viterbi / duration priors / state-to-segment)
-
-ALL FIVE pure modules are now connected.
+Stages 1-5:  all five pure modules connected (annotation_io, preprocessing,
+             spectrogram, features, hsmm).
+Phase 2:     nine GUI widget classes extracted to respanno/gui/.
 
 These tests do NOT import 1.6.6.py (which would trigger PyQt5 / sounddevice).
 They only scan the source text.
@@ -207,6 +203,63 @@ def _respanno_refs_in_class(tree: ast.AST, class_name: str) -> list:
                         if "respanno" in full:
                             refs.append(full)
     return refs
+
+
+# ---------------------------------------------------------------------------
+# 7. Phase 2: GUI widget modules exist and compile
+# ---------------------------------------------------------------------------
+
+GUI_MODULES = [
+    "respanno/gui/widgets/clickable_slider.py",
+    "respanno/gui/widgets/color_bar.py",
+    "respanno/gui/widgets/color_check_delegate.py",
+    "respanno/gui/dialogs/annotation_label_dialog.py",
+    "respanno/gui/dialogs/loop_player.py",
+    "respanno/gui/spans/span_label_item.py",
+    "respanno/gui/spans/box_span.py",
+    "respanno/gui/views/annot_view_box.py",
+    "respanno/gui/views/wave_view_box.py",
+]
+
+
+def test_gui_module_files_exist():
+    for rel_path in GUI_MODULES:
+        path = os.path.join(ROOT, rel_path)
+        assert os.path.isfile(path), f"Missing module: {rel_path}"
+
+
+def test_gui_modules_compile():
+    import py_compile
+    for rel_path in GUI_MODULES:
+        path = os.path.join(ROOT, rel_path)
+        try:
+            py_compile.compile(path, doraise=True)
+        except py_compile.PyCompileError as e:
+            raise AssertionError(f"Module does not compile: {rel_path}\n{e}")
+
+
+def test_gui_imports_widget_classes():
+    """1.6.6.py must import the 9 extracted classes from respanno.gui."""
+    tree = _parse_ast(GUI_FILE)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                imports.append(f"{module}.{alias.name}")
+    required = {
+        "respanno.gui.widgets.clickable_slider.ClickableSlider",
+        "respanno.gui.widgets.color_bar.ColorBarWidget",
+        "respanno.gui.widgets.color_check_delegate.ColorCheckDelegate",
+        "respanno.gui.dialogs.annotation_label_dialog.AnnotationLabelDialog",
+        "respanno.gui.dialogs.loop_player.LoopPlayer",
+        "respanno.gui.spans.span_label_item.SpanLabelItem",
+        "respanno.gui.spans.box_span.BoxSpan",
+        "respanno.gui.views.annot_view_box.AnnotViewBox",
+        "respanno.gui.views.wave_view_box.WaveViewBox",
+    }
+    missing = required - set(imports)
+    assert not missing, f"1.6.6.py missing GUI imports: {missing}"
 
 
 def test_mlservice_not_rewired():
