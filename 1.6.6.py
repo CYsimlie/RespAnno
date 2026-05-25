@@ -49,6 +49,7 @@ from PyQt5.QtWidgets import QShortcut
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import QShortcut
 
+import numpy as np
 from collections import defaultdict
 
 
