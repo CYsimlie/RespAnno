@@ -9,6 +9,18 @@ import scipy.io.wavfile as wavfile
 
 
 @pytest.fixture(scope="session")
+def qapp():
+    """Session-scoped QApplication (offscreen — safe for headless CI)."""
+    import os as _os
+    _os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PyQt5.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(["pytest"])
+    return app
+
+
+@pytest.fixture(scope="session")
 def legacy_root():
     """Absolute path to the legacy directory."""
     root = os.path.join(os.path.dirname(__file__), "..", "legacy")

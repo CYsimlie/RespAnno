@@ -215,6 +215,7 @@ GUI_MODULES = [
     "respanno/gui/widgets/color_check_delegate.py",
     "respanno/gui/dialogs/annotation_label_dialog.py",
     "respanno/gui/dialogs/loop_player.py",
+    "respanno/gui/dialogs/settings_dialog.py",
     "respanno/gui/spans/span_label_item.py",
     "respanno/gui/spans/box_span.py",
     "respanno/gui/views/annot_view_box.py",
@@ -250,9 +251,9 @@ def test_gui_imports_widget_classes():
     required = {
         "respanno.gui.widgets.clickable_slider.ClickableSlider",
         "respanno.gui.widgets.color_bar.ColorBarWidget",
-        "respanno.gui.widgets.color_check_delegate.ColorCheckDelegate",
         "respanno.gui.dialogs.annotation_label_dialog.AnnotationLabelDialog",
         "respanno.gui.dialogs.loop_player.LoopPlayer",
+        "respanno.gui.dialogs.settings_dialog.SettingsDialog",
         "respanno.gui.spans.span_label_item.SpanLabelItem",
         "respanno.gui.spans.box_span.BoxSpan",
         "respanno.gui.views.annot_view_box.AnnotViewBox",
@@ -275,3 +276,105 @@ def test_boxspan_not_rewired():
     tree = _parse_ast(GUI_FILE)
     refs = _respanno_refs_in_class(tree, "BoxSpan")
     assert not refs, f"BoxSpan must not import respanno modules, found: {refs}"
+
+
+# ---------------------------------------------------------------------------
+# 8. Phase 4: SettingsDialog extracted to respanno/gui/dialogs/
+# ---------------------------------------------------------------------------
+
+def test_settings_dialog_imports_color_check_delegate():
+    """ColorCheckDelegate is no longer imported in 1.6.6.py — it must be
+    imported internally by settings_dialog.py instead."""
+    import ast as ast_m
+    settings_path = os.path.join(
+        ROOT, "respanno", "gui", "dialogs", "settings_dialog.py")
+    with open(settings_path, "r", encoding="utf-8") as f:
+        tree = ast_m.parse(f.read(), filename=settings_path)
+    imports = []
+    for node in ast_m.walk(tree):
+        if isinstance(node, ast_m.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                imports.append(f"{module}.{alias.name}")
+    assert "respanno.gui.widgets.color_check_delegate.ColorCheckDelegate" in imports, (
+        "settings_dialog.py must import ColorCheckDelegate internally"
+    )
+
+
+def test_settings_dialog_basic_getters(qapp):
+    """Instantiate SettingsDialog with defaults and verify all 7 getters
+    return correct types and reasonable values."""
+    from respanno.gui.dialogs.settings_dialog import SettingsDialog
+
+    dlg = SettingsDialog(
+        n_fft=1024, hop_length=512, f_max=2000,
+        wave_y_range=(-0.5, 0.8),
+        selected_features=["短时能量", "过零率"],
+        stft_cmap="Grayscale",
+        preprocessing_enabled=False,
+    )
+
+    # 1. get_values()
+    n_fft, hop, fmax, (ymin, ymax) = dlg.get_values()
+    assert n_fft == 1024
+    assert hop == 512
+    assert fmax == 2000
+    assert abs(ymin - (-0.5)) < 1e-9
+    assert abs(ymax - 0.8) < 1e-9
+
+    # 2. get_resample_settings()
+    res_enabled, target_sr = dlg.get_resample_settings()
+    assert isinstance(res_enabled, bool)
+    assert isinstance(target_sr, int)
+    assert target_sr == 4000
+
+    # 3. get_preprocessing_settings()
+    pp = dlg.get_preprocessing_settings()
+    assert isinstance(pp, dict)
+    assert "preprocessing_enabled" in pp
+    assert "resample_enabled" in pp
+    assert "filter_enabled" in pp
+    assert pp["preprocessing_enabled"] is False  # we set it False above
+
+    # 4. get_auto_label_import_enabled()
+    auto_enabled = dlg.get_auto_label_import_enabled()
+    assert isinstance(auto_enabled, bool)
+    assert auto_enabled is False  # default
+
+    # 5. get_auto_label_import_settings()
+    cfg = dlg.get_auto_label_import_settings()
+    assert isinstance(cfg, dict)
+    assert cfg["file_format"] == "auto"
+    assert cfg["file_suffix"] == "_events"
+    assert cfg["start_col"] == 1
+
+    # 6. get_selected_features()
+    feats = dlg.get_selected_features()
+    assert isinstance(feats, list)
+    assert "短时能量" in feats
+    assert "过零率" in feats
+    assert len(feats) <= 5
+
+    # 7. get_stft_display_settings()
+    cmap, vmin, vmax = dlg.get_stft_display_settings()
+    assert cmap == "Grayscale"
+    assert isinstance(vmin, float)
+    assert isinstance(vmax, float)
+    assert vmax > vmin
+
+
+def test_settings_dialog_preprocessing_settings_default(qapp):
+    """Default preprocessing settings match expected values."""
+    from respanno.gui.dialogs.settings_dialog import SettingsDialog
+
+    dlg = SettingsDialog()
+    pp = dlg.get_preprocessing_settings()
+    assert pp["preprocessing_enabled"] is True
+    assert pp["resample_enabled"] is True
+    assert pp["resample_target_sr"] == 4000
+    assert pp["filter_enabled"] is False
+    assert pp["filter_type"] == "bandpass"
+    assert pp["filter_lowcut"] == 20.0
+    assert pp["filter_highcut"] == 1800.0
+    assert pp["filter_order"] == 4
+    assert pp["filter_zero_phase"] is True
