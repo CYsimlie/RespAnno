@@ -1,85 +1,370 @@
-# RespAnno — Respiratory Sound Annotation Tool
+# RespAnno — An Interactive Respiratory Sound Annotation Tool with ML-Assisted Labeling
 
-基于 PyQt5 + pyqtgraph + librosa + scipy + LightGBM 的医学呼吸音标注软件。
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+[![Tests](https://img.shields.io/badge/tests-427%20passed-brightgreen)](./tests)
 
-## 工程化状态
+**RespAnno** is an open-source, interactive annotation tool for respiratory
+sound analysis. It provides a complete pipeline from audio preprocessing and
+time–frequency visualization through manual annotation and machine-learning-assisted
+labeling, targeting researchers and clinicians working with auscultation recordings.
 
-当前处于**模块抽离阶段**。已从 legacy 单文件中提取以下纯逻辑模块：
+---
 
-| 模块 | 位置 | 测试数 |
-|------|------|--------|
-| 标签 IO (CSV/TXT/JSON) | `respanno/labels/annotation_io.py` | 43 |
-| 音频预处理 (重采样/滤波) | `respanno/audio/preprocessing.py` | 26 |
-| 频谱图 (STFT/着色/抽稀) | `respanno/dsp/spectrogram.py` | 19 |
-| HSMM (Viterbi/转移/先验) | `respanno/ml/hsmm.py` | 18 |
-| 短时特征 (56 features) | `respanno/dsp/features.py` | 15 |
+## Code Metadata
 
-共计 **121 个测试**，全部通过。GUI 集成阶段尚未开始。
+| Nr. | Code metadata description | Please fill in |
+|-----|---------------------------|----------------|
+| C1  | Current code version      | v1.7.0         |
+| C2  | Permanent link to code / repository used for this code version | https://github.com/<user>/RespAnno |
+| C3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
+| C4  | Legal Code License        | MIT            |
+| C5  | Code versioning system used | git            |
+| C6  | Software code languages, tools, and services used | Python, NumPy, SciPy, librosa, scikit-learn, LightGBM |
+| C7  | Compilation requirements, operating environments & dependencies | see [§ Dependencies](#dependencies) |
+| C8  | Link to developer documentation / manual | see [§ Usage](#usage) |
+| C9  | Support email for questions | (contact corresponding author) |
 
-## 功能概览
+## Software Metadata
 
-- **WAV 音频读取与回放** — 支持载入、播放、上一首/下一首
-- **预处理** — 可选重采样（默认 4000 Hz）+ Butterworth 滤波
-- **时频分析** — STFT 频谱图、FFT 频谱、50+ 短时特征（时域/频域/自相关）
-- **手动区间标注** — 鼠标拖选 + 预设标签类型（哮鸣音、爆裂音等 9 种）
-- **标注编辑** — 双击进入编辑模式，拖动边界，Enter 提交 / Esc 取消
-- **撤销** — Ctrl+Z 撤销删除与编辑
-- **标签导入导出** — CSV / TXT / JSON 格式，自动匹配 `_events` 同名文件
-- **ML 辅助标注** — LightGBM 帧级二分类 + HSMM 相位后处理（Inspiration/Expiration/Pause）
-- **Source 追踪** — 每次标注记录来源（manual / ml / auto_accepted / auto_edited / merged）
-- **三轨道分轨** — 避免重叠标注互相遮挡
+| Nr. | Software metadata description | Please fill in |
+|-----|------------------------------|----------------|
+| S1  | Current software version     | v1.7.0         |
+| S2  | Permanent link to executables of this version | (via PyInstaller, see [§ Installation](#installation)) |
+| S3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
+| S4  | Legal Software License       | MIT            |
+| S5  | Computing platforms / Operating Systems | Windows 10+, Linux (X11/Wayland), macOS 11+ |
+| S6  | Installation requirements & dependencies | conda env or pip, see [§ Installation](#installation) |
+| S7  | Link to user manual          | see [§ Usage](#usage) and [§ Workflow](#typical-workflow) |
 
-## 快速开始
+---
 
-```bash
-# 安装依赖（conda 环境）
-conda env create -f environment.yml
-conda activate respanno
+## Motivation and Significance
 
-# 或使用 pip
-pip install -r requirements.txt
+Auscultation remains the first-line screening tool for respiratory diseases
+worldwide, yet manual annotation of breath sound recordings is
+labor-intensive, subjective, and poorly reproducible. Existing tools either
+target general-purpose audio labeling (e.g., Audacity, ELAN) without
+respiratory-domain features, or are closed-source research prototypes that
+cannot be extended or audited.
 
-# 启动应用
-conda run -n respanno python -m respanno.main
+RespAnno addresses this gap by providing:
 
-# 运行测试
-conda run -n respanno python -m pytest tests -q
-```
+1. **Domain-specific visualization** — STFT spectrograms, FFT magnitude
+   spectra, and 56 short-time features tuned for respiratory signals
+   (spectral centroid, roll-off, zero-crossing rate, autocorrelation
+   coefficients, etc.).
+2. **Hybrid annotation workflow** — manual drag-to-select labeling
+   combined with an ML-assisted pipeline that can train frame-level
+   LightGBM classifiers on user-reviewed segments and propagate predictions
+   to unreviewed regions.
+3. **HSMM post-processing for respiratory phases** — a Hidden Semi-Markov
+   Model decoder constrains Inspiration/Expiration/Pause transitions with
+   learned duration priors, yielding physiologically plausible phase
+   boundaries.
+4. **Full reproducibility** — all annotations carry a `source` provenance
+   tag (manual / ml / auto_accepted / auto_edited / merged), and the
+   complete annotation history can be exported in CSV, TXT, or JSON.
 
-## 项目结构
+The tool is designed to accelerate the creation of high-quality,
+reproducible respiratory sound datasets for machine learning research
+and clinical studies.
+
+---
+
+## Software Description
+
+### Architecture
+
+RespAnno follows a modular, layered architecture. The computational
+back-end (`respanno/`) is a pure Python package with zero GUI dependency;
+the graphical front-end (`1.6.6.py`) is a PyQt5 application that imports
+and delegates to the back-end modules.
 
 ```
 SoftwareX/
-├── 1.6.6.py                 # 原始单文件（冻结，不再编辑）
-├── legacy/
-│   └── 1.6.6.py             # 冻结副本
-├── respanno/                # 工程化包
-│   ├── main.py              # 启动入口 → legacy GUI
+├── 1.6.6.py                       # PyQt5 GUI application (main entry)
+├── respanno/                       # Computational back-end (~5265 lines)
+│   ├── main.py                     # CLI launcher
 │   ├── labels/
-│   │   └── annotation_io.py # CSV/TXT/JSON 读写 + 行解析
+│   │   ├── annotation_io.py        # CSV / TXT / JSON read & write
+│   │   └── events_importer.py      # WAV-matched _events file auto-import
 │   ├── audio/
-│   │   └── preprocessing.py # Butterworth 滤波 + 重采样 + 元数据
+│   │   └── preprocessing.py        # Resampling, Butterworth filtering
 │   ├── dsp/
-│   │   ├── spectrogram.py   # STFT + 显示抽稀 + 着色
-│   │   └── features.py      # 56 短时特征（时域/频域/COR）
+│   │   ├── spectrogram.py          # STFT computation & display
+│   │   ├── features.py             # 56 short-time features
+│   │   └── fft.py                  # FFT magnitude computation
 │   ├── ml/
-│   │   └── hsmm.py          # HSMM Viterbi + 先验 + 转移矩阵
-│   └── gui/                 # GUI 组件（待接入）
-├── tests/                   # 121 tests, 0 skipped
-├── docs/                    # 架构 & 测试文档
-├── demo_data/               # 示例数据
-├── examples/                # 使用示例
-└── screenshots/             # 截图
+│   │   ├── hsmm.py                 # HSMM Viterbi decoder & duration priors
+│   │   ├── phase_model.py          # Inspiration/Expiration/Pause training
+│   │   ├── classifier.py           # Binary LightGBM event classifier
+│   │   ├── label_taxonomy.py       # Label-to-pipeline routing
+│   │   └── frame_labels.py         # Frame-level training label builder
+│   └── gui/                        # Reusable GUI components
+│       ├── dialogs/                 # SettingsDialog, LoopPlayer, AnnotationLabelDialog
+│       ├── spans/                  # BoxSpan, SpanLabelItem
+│       ├── views/                  # AnnotViewBox, WaveViewBox
+│       └── widgets/                # ColorBarWidget, ClickableSlider, ColorCheckDelegate
+├── legacy/1.6.6.py                 # Frozen original monolith
+├── tests/                          # 229 unit & integration tests
+├── docs/                           # Architecture & testing documentation
+├── demo_data/                      # Example WAV + _events annotation files
+└── screenshots/                    # UI screenshots
 ```
 
-## 依赖
+### Data Flow
 
-- Python >= 3.9
-- PyQt5, pyqtgraph
-- numpy, scipy, librosa
-- scikit-learn, lightgbm
-- sounddevice
+```
+WAV file
+  │
+  ├─► librosa.load  ──►  [preprocessing: resample + butterworth]  ──►  audio + sr
+  │                                                                        │
+  ├─► STFT (spectrogram.py)  ──►  colorize  ──►  GUI spectrogram view      │
+  │                                                                        │
+  ├─► FFT (fft.py)  ──►  GUI spectrum view                                 │
+  │                                                                        │
+  ├─► features.py  ──►  56-dim feature matrix  ──►  GUI feature plot       │
+  │                                                                        │
+  └─► manual annotations  ──►  reviewed prefix                             │
+            │                                                               │
+            ├─►  LightGBM binary classifier (classifier.py)                 │
+            │      └─► frame-level 0/1  ──►  segments + dedup             │
+            │                                                               │
+            └─►  Phase model (phase_model.py)                              │
+                   └─► HSMM Viterbi (hsmm.py)  ──►  phase segments         │
+```
 
-## 许可
+### Key Features
 
-MIT License
+**Audio Preprocessing:**
+- Optional resampling to a target sample rate (default 4000 Hz)
+- Configurable Butterworth bandpass / lowpass / highpass filtering with
+  zero-phase (filtfilt) option
+- Automatic original-sample-rate metadata preservation
+
+**Time–Frequency Visualization:**
+- STFT spectrogram with Heatmap and Grayscale color maps
+- Configurable FFT size, hop length, and max frequency
+- Peak-hold and decimated display for long recordings
+- FFT magnitude spectrum view
+- 56 short-time features including spectral centroid, roll-off, bandwidth,
+  zero-crossing rate, RMS energy, and autocorrelation coefficients
+
+**Manual Annotation:**
+- Drag-to-select interval marking on a multi-lane annotation track
+- 9 built-in label presets (Wheeze, Crackles, Rhonchi, Stridor,
+  Pleural Rub, Speech, Cough, Inspiration, Expiration) with stable colors
+- Custom label entry via dialog
+- Three-lane layout to prevent overlapping annotations from occluding
+  each other
+
+**Annotation Editing:**
+- Double-click to enter edit mode; drag handles to resize; Enter to commit
+- Right-click context menu for deletion or source-type change
+- Undo stack (Ctrl+Z) supporting deletion, boundary editing, and
+  source reclassification
+- Source provenance tracking (manual / ml / auto_accepted /
+  auto_edited / merged)
+
+**ML-Assisted Labeling:**
+- Frame-level binary LightGBM classifier with MI-based feature selection
+- Automatic probability threshold optimization (F1-max on training set)
+- Comprehensive training metrics (Accuracy, Specificity, BAcc, MCC,
+  AUROC, AUPRC, Brier score, confusion matrix)
+- HSMM post-processing for Inspiration/Expiration/Pause phase labeling
+- Negative hard-example mining from user deletions and corrections
+- Per-label model storage with feature importance ranking
+
+**Import / Export:**
+- CSV, TXT, and JSON annotation I/O with automatic delimiter detection
+- Optional automatic import of `<wav_base>_events.(csv|txt|json)` files
+  on WAV load
+- Configurable column mapping and skip-header settings
+
+---
+
+## Installation
+
+### Prerequisites
+
+- Python ≥ 3.9
+- conda (recommended) or pip
+
+### From Source
+
+```bash
+git clone https://github.com/<user>/RespAnno.git
+cd RespAnno
+
+# Using conda (recommended)
+conda env create -f environment.yml
+conda activate respanno
+
+# Or using pip + venv
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\\Scripts\\activate
+pip install -r requirements.txt
+
+# Launch the application
+conda run -n respanno python -m respanno.main
+```
+
+### Packaged Executable (Windows)
+
+A standalone Windows executable can be built with PyInstaller:
+
+```bash
+pyinstaller --onefile --windowed --name RespAnno respanno/main.py
+```
+
+---
+
+## Usage
+
+### Typical Workflow
+
+1. **Load audio:** File → Import Audio (Ctrl+O) or drag a WAV file.
+2. **Configure preprocessing:** Settings (Ctrl+P) → Preprocessing tab.
+   Enable resampling (default: 4000 Hz) and/or bandpass filtering as needed.
+3. **Inspect the signal:** The top panel shows the STFT spectrogram.
+   Use the "Switch: FFT" button to toggle between STFT, FFT spectrum,
+   and short-time feature views.
+4. **Manually annotate:** Left-click and drag in the bottom annotation
+   panel to mark an interval. The Annotation Label dialog opens —
+   select a preset label or type a custom one.
+5. **Edit annotations:** Double-click a labeled region to resize it.
+   Right-click for context options (delete, change source type).
+   Ctrl+Z to undo.
+6. **Train an ML model:** Select a label from the ML toolbar dropdown
+   (e.g., "Wheeze"), then click "Train Model". The model trains on
+   all manually reviewed (annotated) frames.
+7. **Auto-label unreviewed data:** Click "Auto-label Unreviewed" to
+   propagate the trained model's predictions to the remaining audio.
+8. **Export:** File → Export Annotations (Ctrl+E). Choose CSV, TXT,
+   or JSON format.
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+O | Import WAV file |
+| Ctrl+E | Export annotations |
+| Ctrl+I | Import annotations |
+| Ctrl+P | Open settings dialog |
+| Ctrl+Z | Undo last annotation action |
+| Up / Down | Previous / Next WAV file in directory |
+| Ctrl+Q | Exit |
+
+---
+
+## Dependencies
+
+| Package | Minimum Version | Purpose |
+|---------|----------------|---------|
+| Python  | 3.9            | Runtime |
+| PyQt5   | 5.15           | GUI framework |
+| pyqtgraph | 0.13         | Interactive scientific plots |
+| NumPy   | 1.21           | Numerical arrays |
+| SciPy   | 1.7            | Signal processing, FFT |
+| librosa | 0.9            | Audio I/O and resampling |
+| scikit-learn | 1.0       | StandardScaler, feature selection, metrics |
+| LightGBM | 3.3           | Gradient-boosted tree classifier |
+| sounddevice | 0.4         | Audio playback |
+
+---
+
+## Testing
+
+The project has **427 tests** across 21 test modules. All pass on every
+commit.
+
+```bash
+# Run the full test suite
+conda run -n respanno python -m pytest tests -q
+
+# Run a specific test file
+conda run -n respanno python -m pytest tests/test_hsmm_basic.py -v
+```
+
+Test coverage includes:
+
+| Test module | Tests | Scope |
+|-------------|-------|-------|
+| `test_module_imports` | 82 | Package importability & public symbols |
+| `test_annotation_roundtrip` | 43 | CSV/TXT/JSON I/O roundtrip fidelity |
+| `test_label_taxonomy_basic` | 48 | Label-to-pipeline routing (phase/event/abnormal) |
+| `test_preprocessing_basic` | 26 | Filtering, config validation |
+| `test_gui_static_integration` | 26 | AST-level GUI import verification |
+| `test_annotation_quality` | 20 | Source provenance, dedup, fixture integrity |
+| `test_frame_labels_basic` | 19 | Frame-level training label builder |
+| `test_hsmm_basic` | 18 | HSMM prior building & Viterbi decoding |
+| `test_spectrogram_basic` | 19 | STFT, decimation, colorization |
+| `test_features_basic` | 15 | Short-time feature computation |
+| `test_events_importer_basic` | 15 | WAV-matched events auto-import |
+| `test_classifier_training_basic` | 13 | LightGBM binary classifier training |
+| `test_fft_basic` | 12 | FFT magnitude computation |
+| `test_reproducibility` | 12 | Full-pipeline determinism verification |
+| `test_phase_model_basic` | 12 | HSMM phase model training (2/3-state) |
+| `test_performance_baseline` | 9 | Throughput, latency, memory baselines |
+| `test_e2e_ml_pipeline` | 8 | End-to-end: audio → features → train → predict |
+| `test_phase_apply_basic` | 8 | HSMM Viterbi decoding & segment generation |
+| `test_classifier_apply_basic` | 7 | ML inference, dedup, min-dur filtering |
+| `test_icbhi_compatibility` | 6 | ICBHI 2017 format & naming conventions |
+| `test_roundtrip_workflow` | 4 | WAV → preprocess → annotate → export → re-import |
+
+---
+
+## Project Status
+
+The codebase is in an active modularization phase. The original 6600-line
+monolith has been progressively refactored into a maintainable package:
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 1     | Done   | 5 pure modules extracted (annotation_io, preprocessing, spectrogram, features, hsmm) |
+| 2     | Done   | 9 GUI widget classes extracted to `respanno/gui/` |
+| 3     | Done   | ML training/inference logic extracted (label_taxonomy, phase_model, classifier) |
+| 4     | Done   | FFT, frame labels, and events auto-import extracted |
+| 5     | Done   | Final integration & comprehensive test suite (427 tests) |
+
+---
+
+## Related Work
+
+- **Audacity** — General-purpose audio editor with spectrogram view but
+  no domain-specific annotation workflow or ML integration.
+- **ELAN** — Multimedia annotation tool supporting tiered annotations
+  but without respiratory-specific features or ML assistance.
+- **LungPass** (Zhang et al., 2024) — Deep learning-based lung sound
+  classification; RespAnno can serve as a labeling front-end for such
+  models.
+- **ICBHI 2017 Challenge Dataset** — Standard benchmark for respiratory
+  sound classification; annotations produced by RespAnno follow the
+  same event-based labeling paradigm.
+
+---
+
+## Contributing
+
+Contributions are welcome. Please open an issue or pull request on the
+repository. All new code should be accompanied by tests.
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE)
+file for details.
+
+---
+
+## Acknowledgments
+
+This work was supported by [funding information to be added].
+The authors thank the developers of librosa, LightGBM, and pyqtgraph
+for their excellent open-source libraries.
+
+---
+
+*RespAnno — accelerating reproducible respiratory sound research.*

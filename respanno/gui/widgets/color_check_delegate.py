@@ -1,8 +1,8 @@
 """Custom delegate for rendering colored checkboxes in feature selection."""
 
 from PyQt5.QtWidgets import QStyledItemDelegate, QStyleOptionButton, QApplication, QStyle
-from PyQt5.QtGui import QPalette
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPalette, QColor, QPainter, QPen, QBrush, QPainterPath
+from PyQt5.QtCore import Qt, QRect, QSize, QEvent
 
 class ColorCheckDelegate(QStyledItemDelegate):
     """勾选后才上色；未勾选Display空框；整行可点击切换；方块尺寸更大"""

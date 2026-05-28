@@ -16,7 +16,9 @@ class AnnotViewBox(pg.ViewBox):
 
 
     def _hit_span_under_cursor(self, ev):
-        # "\"\"若鼠标位于某个 BoxSpan (或其把手/文字标签)之上，返回该 BoxSpan；否则返回 None。\"\"\"
+        """If the mouse is over a BoxSpan (or its handle/label), return it; else None."""
+        from respanno.gui.spans.box_span import BoxSpan
+
         try:
             scene = self.scene()
         except Exception:

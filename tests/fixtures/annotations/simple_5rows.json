@@ -1,0 +1,7 @@
+[
+  {"start": 0.5, "end": 1.2, "label": "Wheeze", "source": "manual"},
+  {"start": 1.8, "end": 2.4, "label": "Crackles", "source": "manual"},
+  {"start": 3.0, "end": 4.1, "label": "Inspiration", "source": "manual"},
+  {"start": 4.1, "end": 5.5, "label": "Expiration", "source": "manual"},
+  {"start": 6.0, "end": 6.8, "label": "Speech", "source": "manual"}
+]

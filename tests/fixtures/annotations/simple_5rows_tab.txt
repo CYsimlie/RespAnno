@@ -1,0 +1,6 @@
+start	end	label	source
+0.5	1.2	Wheeze	manual
+1.8	2.4	Crackles	manual
+3.0	4.1	Inspiration	manual
+4.1	5.5	Expiration	manual
+6.0	6.8	Speech	manual

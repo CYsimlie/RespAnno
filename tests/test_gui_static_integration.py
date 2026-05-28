@@ -184,11 +184,96 @@ def test_gui_calls_hsmm_functions():
 
 
 # ---------------------------------------------------------------------------
+# 6b. Stage 5b: label_taxonomy
+# ---------------------------------------------------------------------------
+
+def test_gui_imports_label_taxonomy():
+    tree = _parse_ast(GUI_FILE)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                imports.append(f"{module}.{alias.name}")
+    assert any("respanno.ml.label_taxonomy" in imp for imp in imports), (
+        f"1.6.6.py must import from respanno.ml.label_taxonomy\n"
+        f"Found: {[i for i in imports if 'respanno' in i]}"
+    )
+
+
+def test_gui_calls_label_taxonomy_functions():
+    src = _tokenized_source(GUI_FILE)
+    required = ["label_kind", "clear_ml_annotations"]
+    missing = [fn for fn in required if fn not in src]
+    assert not missing, f"Missing label_taxonomy calls: {missing}"
+
+
+# ---------------------------------------------------------------------------
+# 6c. Stage 5c: phase_model
+# ---------------------------------------------------------------------------
+
+def test_gui_imports_phase_model():
+    tree = _parse_ast(GUI_FILE)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                imports.append(f"{module}.{alias.name}")
+    assert any("respanno.ml.phase_model" in imp for imp in imports), (
+        f"1.6.6.py must import from respanno.ml.phase_model\n"
+        f"Found: {[i for i in imports if 'respanno' in i]}"
+    )
+
+
+def test_gui_calls_phase_model_functions():
+    src = _tokenized_source(GUI_FILE)
+    required = ["train_phase_model", "apply_phase_model"]
+    missing = [fn for fn in required if fn not in src]
+    assert not missing, f"Missing phase_model calls: {missing}"
+
+
+# ---------------------------------------------------------------------------
+# 6d. Stage 5d: classifier
+# ---------------------------------------------------------------------------
+
+def test_gui_imports_classifier():
+    tree = _parse_ast(GUI_FILE)
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            for alias in node.names:
+                imports.append(f"{module}.{alias.name}")
+    assert any("respanno.ml.classifier" in imp for imp in imports), (
+        f"1.6.6.py must import from respanno.ml.classifier\n"
+        f"Found: {[i for i in imports if 'respanno' in i]}"
+    )
+
+
+def test_gui_calls_classifier_functions():
+    src = _tokenized_source(GUI_FILE)
+    required = ["train_event_model", "apply_event_model"]
+    missing = [fn for fn in required if fn not in src]
+    assert not missing, f"Missing classifier calls: {missing}"
+
+
+# ---------------------------------------------------------------------------
 # 7. MLService, BoxSpan, eventFilter are untouched
 # ---------------------------------------------------------------------------
 
 ALLOWED_RESPANNO = {"annotation_io", "preprocessing", "spectrogram",
-                     "features", "hsmm"}
+                     "features", "hsmm", "label_taxonomy",
+                     "phase_model", "classifier"}
 
 
 def _respanno_refs_in_class(tree: ast.AST, class_name: str) -> list:

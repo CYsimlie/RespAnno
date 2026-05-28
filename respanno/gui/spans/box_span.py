@@ -9,9 +9,9 @@ Imports SpanLabelItem from the spans subpackage.
 
 import numpy as np
 import pyqtgraph as pg
-from PyQt5.QtWidgets import QMenu, QAction
+from PyQt5.QtWidgets import QMenu, QAction, QGraphicsRectItem
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QPen, QBrush
 
 from respanno.gui.spans.span_label_item import SpanLabelItem
 

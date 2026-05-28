@@ -19,8 +19,9 @@ import sounddevice as sd
 import librosa
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QFileDialog,
-    QVBoxLayout, QWidget, QLabel, QDialog, QFormLayout,
-    QInputDialog, QMessageBox, QComboBox, QLineEdit, QDialogButtonBox
+    QVBoxLayout, QHBoxLayout, QWidget, QLabel, QDialog, QFormLayout,
+    QInputDialog, QMessageBox, QComboBox, QLineEdit, QDialogButtonBox,
+    QPushButton, QSplitter, QStackedWidget,
 )
 try:
     from lightgbm import LGBMClassifier
@@ -36,18 +37,10 @@ from sklearn.metrics import (
     matthews_corrcoef, roc_auc_score, average_precision_score, brier_score_loss
 )
 
-from PyQt5.QtWidgets import QMenu, QAction, QToolBar
-
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QMenu, QAction, QToolBar, QShortcut
+from PyQt5.QtCore import Qt, QTimer, QEvent
 import pyqtgraph as pg
-from PyQt5.QtWidgets import QMenu
-from PyQt5.QtWidgets import QAction
-from PyQt5.QtGui import QKeySequence
-import pyqtgraph as pg
-from PyQt5.QtGui import QImage  # ← 顶部 import 里记得加上这一行
-from PyQt5.QtWidgets import QShortcut
-from PyQt5.QtGui import QKeySequence
-from PyQt5.QtWidgets import QShortcut
+from PyQt5.QtGui import QKeySequence, QColor, QImage
 
 import numpy as np
 from collections import defaultdict
@@ -57,20 +50,6 @@ from respanno.gui.dialogs.annotation_label_dialog import AnnotationLabelDialog  
 from respanno.gui.widgets.color_bar import ColorBarWidget  # noqa: F401
 from respanno.gui.dialogs.loop_player import LoopPlayer  # noqa: F401
 from respanno.gui.dialogs.settings_dialog import SettingsDialog  # noqa: F401
-class FrequencyWindow(QMainWindow):
-    def __init__(self, signal, sr):
-        super().__init__()
-        self.setWindowTitle("Frequency Processing and Analysis")
-        self.resize(1600, 900)  # 适配大屏幕
-
-        self.original_signal = signal
-        self.signal = signal.copy()
-        self.sr = sr
-
-        self.init_ui()
-
-
-
 from respanno.gui.spans.span_label_item import SpanLabelItem  # noqa: F401
 from respanno.gui.spans.box_span import BoxSpan  # noqa: F401
 from respanno.gui.views.annot_view_box import AnnotViewBox  # noqa: F401
@@ -101,89 +80,17 @@ class MLService:
         self.owner = owner
 
     def clear_ml_annotations_for_label(self, label):
-        """
-        删除所有标签为 label 且 source != 'manual' 的“机器标注”：
-        - 从可视化中移除对应的 BoxSpan 和 STFT 高光
-        - 把 self.annotations 里对应条目标记为 None (由 delete_annotation 负责)
-        """
-        self = self.owner
-        if  hasattr(self, "ml"):
-            return
+        """Delete all machine annotations for `label`, delegating to label_taxonomy."""
+        from respanno.ml.label_taxonomy import clear_ml_annotations
 
-        # 先找出需要删除的 span (用 _span2idx 映射回 annotations)
-        spans_to_delete = []
-
-        for span in list(getattr(self, "_spans", [])):
-            idx = getattr(self, "_span2idx", {}).get(span, None)
-            if idx is None:
-                continue
-
-            if idx < 0 or idx >= len(self.annotations):
-                continue
-
-            item = self.annotations[idx]
-            if item is None:
-                continue
-
-            # 兼容 3/4 元组 (3 元组一律视为人工标注)
-            try:
-                if len(item) == 3:
-                    s, e, t = item
-                    src = "manual"
-                elif len(item) >= 4:
-                    s, e, t, src = item[:4]
-                else:
-                    continue
-            except Exception:
-                continue
-
-            # 非 manual 且标签匹配 → 属于需要删除的机器标注
-            if src == "ml" and str(t) == str(label):
-                spans_to_delete.append(span)
-
-        # 统一调用已有的删除逻辑
-        for sp in spans_to_delete:
-            try:
-                self.delete_annotation(sp, record_negative=False, push_undo=False)
-            except Exception:
-                pass
-
-        # 保险起见：清掉 annotations 中残留的“无可视对象”的机器标注
-        for i, item in enumerate(self.annotations):
-            if item is None:
-                continue
-            try:
-                if len(item) == 3:
-                    # 三元组默认人工，跳过
-                    continue
-                elif len(item) >= 4:
-                    s, e, t, src = item[:4]
-                else:
-                    continue
-            except Exception:
-                continue
-
-            if src == "ml" and str(t) == str(label):
-                self.annotations[i] = None
+        clear_ml_annotations(self.owner, label)
 
     # --- Per-label pipeline routing (stepwise integration) ---
     def _label_kind(self, label):
-        """
-        将标签路由到三类管线：
-        - phase: 呼吸时相 (Inspiration/Expiration/Pause)，使用相位模型 + HSMM 后处理
-        - abnormal_sound: 呼吸过程中产生的异常音 (默认分支)
-        - other_event: 说话、咳嗽等其他非呼吸过程异常事件
+        """Route label to pipeline kind, delegating to label_taxonomy."""
+        from respanno.ml.label_taxonomy import label_kind
 
-        说明：当前版本 abnormal_sound 与 other_event 仍共用同一套二分类训练/后处理，
-        但已通过 dispatcher 分开，便于后续替换为不同模型与后处理。
-        """
-        lab = str(label).strip().lower()
-        if lab in getattr(MLService, "PHASE_LABELS", {"inspiration", "expiration"}):
-            return MLService.PHASE_KIND
-        if lab in getattr(MLService, "OTHER_EVENT_LABELS", set()):
-            return MLService.OTHER_EVENT_KIND
-        # 默认：异常音
-        return MLService.ABNORMAL_SOUND_KIND
+        return label_kind(label)
 
     def train_model_for_label(self, label, min_pos_frames=30, neg_pos_ratio=5, random_state=None):
         # Dispatcher entrypoint used by UI
@@ -211,7 +118,7 @@ class MLService:
 
     def train_abnormal_sound_model_for_label(self, label, min_pos_frames=30, neg_pos_ratio=5, random_state=None):
         """
-        训练“异常音(呼吸过程中产生)”标签的模型。
+        训练"异常音(呼吸过程中产生)"标签的模型。
         当前版本与 other_event 共用同一套二分类训练逻辑，仅通过 model_kind 区分，便于后续替换。
         """
         return self.train_event_model_for_label(
@@ -225,7 +132,7 @@ class MLService:
 
     def train_other_event_model_for_label(self, label, min_pos_frames=30, neg_pos_ratio=5, random_state=None):
         """
-        训练“其他异常事件(说话/咳嗽等)”标签的模型。
+        训练"其他异常事件(说话/咳嗽等)"标签的模型。
         当前版本与 abnormal_sound 共用同一套二分类训练逻辑，仅通过 model_kind 区分，便于后续替换。
         """
         return self.train_event_model_for_label(
@@ -239,233 +146,15 @@ class MLService:
 
 
     def train_phase_model_for_label(self, label, min_pos_frames=30, neg_pos_ratio=5, random_state=None):
-        """训练呼吸相位 (Inspiration/Expiration)共享模型，并基于人工标注估计 HSMM 先验。
+        """Train phase model, delegating to respanno.ml.phase_model."""
+        from respanno.ml.phase_model import train_phase_model
 
-        规则：
-        - 若训练前缀内同时存在 Inspiration 与 Expiration 人工标注：三态 (Inspiration/Expiration/Pause)，空白视为 Pause。
-        - 若仅存在一种：Two-state (Inspiration/Expiration)，空白视为另一种 (例如仅有 Inspiration 时，空白视为 Expiration)。
-
-        说明：发射概率 (emission)直接来自分类器的 predict_proba；HSMM 主要提供持续Time与转移约束的后处理。
-        """
-        ml = self
-        viewer = self.owner
-
-        # 1) 准备特征与Time轴
-        viewer.ensure_frame_features()
-        X_all = getattr(viewer, "stft_features", None)
-        times = getattr(viewer, "stft_frame_times", None)
-        if X_all is None or times is None or len(times) == 0:
-            QMessageBox.information(viewer, "Machine Learning", "No available short-time features; cannot train the phase model.")
-            return False
-
-        times = np.asarray(times, dtype=float)
-
-        # 2) 仅使用已审阅前缀 (人工标注覆盖到的最大 end)
-        T_used = viewer.get_reviewed_prefix()
-        if T_used is None or T_used <= 0:
-            QMessageBox.information(viewer, "Machine Learning", "No manual annotations yet; cannot train the phase model.")
-            return False
-
-        idx_prefix = np.where(times <= float(T_used))[0]
-        if idx_prefix.size == 0:
-            QMessageBox.information(viewer, "Machine Learning", "No available frames in the reviewed prefix; cannot train the phase model.")
-            return False
-
-        # 3) 收集人工相位标注
-        LAB_I = "Inspiration"
-        LAB_E = "Expiration"
-        seg_I = viewer.get_manual_segments_for_label(LAB_I)
-        seg_E = viewer.get_manual_segments_for_label(LAB_E)
-
-        has_I = len(seg_I) > 0
-        has_E = len(seg_E) > 0
-        if not has_I and not has_E:
-            QMessageBox.information(viewer, "Machine Learning", "No manual Inspiration/Expiration annotations in the reviewed prefix; cannot train the phase model.")
-            return False
-
-        # 4) 构建多类帧标签 (仅在前缀内有效)
-        #    state_id 约定：0=Inspiration, 1=Expiration, 2=Pause (若启用三态)
-        y_state = np.full(len(times), -1, dtype=np.int16)
-
-        # 标 Inspiration/Expiration
-        for (s, e) in seg_I:
-            if e <= s:
-                continue
-            idx = np.where((times >= float(s)) & (times <= float(e)))[0]
-            y_state[idx] = 0
-        for (s, e) in seg_E:
-            if e <= s:
-                continue
-            idx = np.where((times >= float(s)) & (times <= float(e)))[0]
-            y_state[idx] = 1
-
-        # 空白区域处理
-        prefix_mask = np.zeros(len(times), dtype=bool)
-        prefix_mask[idx_prefix] = True
-        idx_blank = np.where(prefix_mask & (y_state < 0))[0]
-
-        if has_I and has_E:
-            # 三态：空白=Pause
-            y_state[idx_blank] = 2
-            state_id_to_name = {0: LAB_I, 1: LAB_E, 2: "Pause"}
-        else:
-            # Two-state：空白视为另一相位
-            if has_I and not has_E:
-                y_state[idx_blank] = 1
-            elif has_E and not has_I:
-                y_state[idx_blank] = 0
-            state_id_to_name = {0: LAB_I, 1: LAB_E}
-
-        y_prefix = y_state[idx_prefix]
-        uniq = np.unique(y_prefix)
-        if uniq.size < 2:
-            QMessageBox.information(viewer, "Machine Learning", "The phase training data has too few valid classes (at least two are required). Please add the other phase or leave blank intervals.")
-            return False
-
-        # 5) 训练 LightGBM 分类器 (StandardScaler + 可选互信息 TopK)
-        FS_ENABLE = True
-        FS_KBEST = 25
-        X_prefix = X_all[idx_prefix, :]
-
-        D_all = int(X_prefix.shape[1])
-        use_fs = bool(FS_ENABLE and D_all > 6)
-        k_best = int(min(FS_KBEST, max(2, D_all)))
-
-        steps = [("scaler", StandardScaler())]
-        if use_fs:
-            steps.append(("select", SelectKBest(score_func=mutual_info_classif, k=k_best)))
-
-        if LGBMClassifier is None:
-            QMessageBox.warning(viewer, "Machine Learning",
-                                "lightgbm is not installed; cannot train a LightGBM model. Please run: pip install lightgbm")
-            return False
-
-        classes_uniq = np.unique(y_prefix)
-        n_classes = int(len(classes_uniq))
-        counts = {int(c): int(np.sum(y_prefix == c)) for c in classes_uniq}
-
-        if n_classes <= 2:
-            n0 = counts.get(0, 0)
-            n1 = counts.get(1, 0)
-            scale_pos_weight = float(n0) / float(max(1, n1))
-
-            clf = LGBMClassifier(
-                objective="binary",
-                n_estimators=400,
-                learning_rate=0.05,
-                num_leaves=31,
-                subsample=0.8,
-                colsample_bytree=0.8,
-                min_child_samples=20,
-                reg_lambda=1.0,
-                scale_pos_weight=scale_pos_weight,
-                random_state=int(random_state) if random_state is not None else 0,
-                n_jobs=1
-            )
-        else:
-            total = float(len(y_prefix))
-            class_weight = {
-                int(c): float(total) / (float(n_classes) * float(max(1, counts.get(int(c), 1))))
-                for c in classes_uniq
-            }
-
-            clf = LGBMClassifier(
-                objective="multiclass",
-                n_estimators=400,
-                learning_rate=0.05,
-                num_leaves=31,
-                subsample=0.8,
-                colsample_bytree=0.8,
-                min_child_samples=20,
-                reg_lambda=1.0,
-                class_weight=class_weight,
-                random_state=int(random_state) if random_state is not None else 0,
-                n_jobs=1
-            )
-
-        steps.append(("clf", clf))
-        pipe = Pipeline(steps)
-        try:
-            pipe.fit(X_prefix, y_prefix)
-        except Exception as e:
-            QMessageBox.warning(viewer, "Machine Learning", f"Phase model training failed: {e}")
-            return False
-
-        # 6) 估计 HSMM 先验 (持续Time + 转移约束)
-        hop_sec = ml._estimate_hop_sec(times=times, viewer=viewer)
-        cycle_sec = ml._estimate_breath_cycle_sec(seg_I, seg_E)
-        hsmm_prior = ml._build_hsmm_prior_from_prefix_labels(
-            y_prefix=y_prefix,
-            classes_=pipe.named_steps["clf"].classes_,
-            state_id_to_name=state_id_to_name,
-            hop_sec=hop_sec,
-            cycle_sec=cycle_sec,
+        return train_phase_model(
+            self.owner, label,
+            min_pos_frames=min_pos_frames,
+            neg_pos_ratio=neg_pos_ratio,
+            random_state=random_state,
         )
-
-        # 6.1) 注入 HSMM 初始分布 π (方案A：使用前缀末尾概率曲线热启动)
-        #      在未审阅区间解码时，log_pi 不再均匀，而由前缀尾部(默认1s)的平均预测概率得到。
-        try:
-            PI_TAIL_SEC = 1.0
-            PI_MIX_LAMBDA = 0.85  # 与均匀先验混合，避免过度自信/数值问题
-            proba_prefix = pipe.predict_proba(X_prefix)  # (T_prefix, S) columns align to clf.classes_
-            hop_eff = float(hop_sec) if (hop_sec and hop_sec > 1e-6) else 0.05
-            n_tail = int(max(1, round(float(PI_TAIL_SEC) / hop_eff)))
-            n_tail = int(min(n_tail, proba_prefix.shape[0]))
-            pi_hat = np.mean(proba_prefix[-n_tail:, :], axis=0)
-            S_pi = int(pi_hat.size)
-            pi_uniform = np.full((S_pi,), 1.0 / float(max(1, S_pi)), dtype=float)
-            pi_init = (1.0 - float(PI_MIX_LAMBDA)) * pi_uniform + float(PI_MIX_LAMBDA) * pi_hat
-            pi_init = np.clip(pi_init, 1e-12, None)
-            pi_init = pi_init / float(np.sum(pi_init) + 1e-12)
-            hsmm_prior["pi_init"] = [float(x) for x in pi_init.tolist()]
-            hsmm_prior["pi_init_classes"] = [int(c) for c in hsmm_prior.get("classes", [])]
-            hsmm_prior["pi_init_tail_sec"] = float(PI_TAIL_SEC)
-            hsmm_prior["pi_init_lambda"] = float(PI_MIX_LAMBDA)
-        except Exception:
-            # π 注入失败不应影响主流程 (回退到均匀初始化)
-            pass
-
-
-        # 7) Feature selection信息
-        full_names = list(getattr(viewer, "stft_feature_names", []))
-        selected_idx = list(range(D_all))
-        if use_fs and "select" in pipe.named_steps:
-            try:
-                selected_idx = pipe.named_steps["select"].get_support(indices=True).tolist()
-            except Exception:
-                selected_idx = list(range(D_all))
-
-        model_info = {
-            "model_kind": "phase",
-            "clf": pipe,
-            "classes": [int(x) for x in pipe.named_steps["clf"].classes_.tolist()],
-            "state_id_to_name": dict((int(k), str(v)) for k, v in state_id_to_name.items()),
-            "hsmm_prior": hsmm_prior,
-            "feature_names": list(full_names),
-            "selected_feature_indices": [int(i) for i in selected_idx],
-            "feature_select_method": "mutual_info_kbest" if use_fs else "none",
-            "feature_select_k": int(k_best) if use_fs else int(D_all),
-            "train_prefix_sec": float(T_used),
-        }
-
-        # 8) 共享挂载到 Inspiration / Expiration 两个入口 (便于Two-state情况下也能从另一按钮调用)
-        if not hasattr(viewer, "ml_models"):
-            viewer.ml_models = {}
-        viewer.ml_models[LAB_I] = model_info
-        viewer.ml_models[LAB_E] = model_info
-
-        # 9) 汇报
-        counts = {int(c): int(np.sum(y_prefix == c)) for c in np.unique(y_prefix)}
-        scheme = "Three-state (with Pause)" if ("Pause" in model_info["state_id_to_name"].values()) else "Two-state"
-        msg = (
-            f"Phase model trained ({scheme}):\n"
-            f"Prefix length: {float(T_used):.2f}s, hop≈{hop_sec:.4f}s, estimated cycle≈{cycle_sec:.2f}s\n"
-            f"Class frame counts: " + ", ".join([f"{model_info['state_id_to_name'][k]}={v}" for k, v in sorted(counts.items())]) + "\n"
-            f"Feature selection: {'MI-TopK' if use_fs else 'None'} (kept {len(selected_idx)}/{D_all})\n"
-            f"HSMM duration (frames): " + ", ".join([f"{model_info['state_id_to_name'][sid]}[{hsmm_prior['dmin_frames'][i]}..{hsmm_prior['dmax_frames'][i]}]" for i, sid in enumerate(hsmm_prior['classes'])])
-        )
-        QMessageBox.information(viewer, "Machine Learning", msg)
-        return True
 
 
     def apply_model_for_label_on_unreviewed(self, label, min_dur_sec=0.05):
@@ -479,7 +168,7 @@ class MLService:
 
     def apply_abnormal_sound_model_for_label_on_unreviewed(self, label, min_dur_sec=0.05):
         """
-        在未审阅区域对“异常音(呼吸过程中产生)”标签Auto Annotation。
+        在未审阅区域对"异常音(呼吸过程中产生)"标签Auto Annotation。
         当前版本与 other_event 共用同一套二分类后处理，仅通过 model_kind 区分，便于后续替换。
         """
         return self.apply_event_model_for_label_on_unreviewed(
@@ -491,7 +180,7 @@ class MLService:
 
     def apply_other_event_model_for_label_on_unreviewed(self, label, min_dur_sec=0.05):
         """
-        在未审阅区域对“其他异常事件(说话/咳嗽等)”标签Auto Annotation。
+        在未审阅区域对"其他异常事件(说话/咳嗽等)"标签Auto Annotation。
         当前版本与 abnormal_sound 共用同一套二分类后处理，仅通过 model_kind 区分，便于后续替换。
         """
         return self.apply_event_model_for_label_on_unreviewed(
@@ -503,169 +192,10 @@ class MLService:
 
 
     def apply_phase_model_for_label_on_unreviewed(self, label, min_dur_sec=0.05):
-        """对呼吸相位标签做 HSMM 后处理，并只输出当前 label 对应的区间 (source='ml')。"""
-        ml = self
-        viewer = self.owner
+        """Apply phase model, delegating to respanno.ml.phase_model."""
+        from respanno.ml.phase_model import apply_phase_model
 
-        LAB_I = "Inspiration"
-        LAB_E = "Expiration"
-        lab = str(label).strip().lower()
-        if lab == "inspiration":
-            target_label = LAB_I
-        elif lab == "expiration":
-            target_label = LAB_E
-        else:
-            target_label = str(label)
-
-        # 1) 检查模型
-        if (not hasattr(viewer, "ml_models")) or (LAB_I not in viewer.ml_models):
-            QMessageBox.information(viewer, "Auto Annotation", "The phase model has not been trained. Please train the Inspiration/Expiration phase model first.")
-            return False
-
-        model_info = viewer.ml_models.get(target_label, viewer.ml_models.get(LAB_I, None))
-        if not model_info or model_info.get("model_kind") != "phase":
-            QMessageBox.information(viewer, "Auto Annotation", "The phase model is missing or has a mismatched type. Please retrain the phase model.")
-            return False
-
-        viewer.clear_ml_annotations_for_label(target_label)
-
-        # 2) 准备特征与Time
-        viewer.ensure_frame_features()
-        times = getattr(viewer, "stft_frame_times", None)
-        X = getattr(viewer, "stft_features", None)
-        if times is None or X is None or len(times) == 0:
-            QMessageBox.information(viewer, "Auto Annotation", "No available short-time features; cannot auto-label.")
-            return False
-
-        times = np.asarray(times, dtype=float)
-
-        # 3) 未审阅区域
-        T_used = viewer.get_reviewed_prefix()
-        if T_used is None or T_used <= 0:
-            QMessageBox.information(viewer, "Auto Annotation", "No manual annotations yet; cannot determine the unreviewed region.")
-            return False
-
-        idx_unr = np.where(times > float(T_used))[0]
-        if idx_unr.size == 0:
-            QMessageBox.information(viewer, "Auto Annotation", "The current record has already been fully reviewed; there are no unreviewed frames.")
-            return False
-
-        X_unr = X[idx_unr, :]
-        clf = model_info["clf"]
-        try:
-            proba = clf.predict_proba(X_unr)  # (T, S)
-        except Exception as e:
-            QMessageBox.warning(viewer, "Auto Annotation", f"Phase model prediction failed: {e}")
-            return False
-
-        classes = [int(c) for c in model_info.get("classes", [])]
-        if not classes:
-            # 兜底：从 sklearn 里取
-            try:
-                classes = [int(c) for c in clf.named_steps["clf"].classes_.tolist()]
-            except Exception:
-                classes = list(range(proba.shape[1]))
-
-        # proba 的列顺序 = clf.classes_；需要与 classes 对齐
-        try:
-            clf_classes = [int(c) for c in clf.named_steps["clf"].classes_.tolist()]
-        except Exception:
-            clf_classes = classes
-
-        if len(clf_classes) != proba.shape[1]:
-            QMessageBox.warning(viewer, "Auto Annotation", "The phase model has an abnormal class dimension. Retraining is recommended.")
-            return False
-
-        # 构建 log-emission
-        eps = 1e-12
-        log_emit = np.log(np.clip(proba, eps, 1.0))
-
-        # HSMM 先验
-        prior = model_info.get("hsmm_prior", {})
-        dmin = prior.get("dmin_frames", None)
-        dmax = prior.get("dmax_frames", None)
-        if dmin is None or dmax is None:
-            QMessageBox.warning(viewer, "Auto Annotation", "The phase model lacks HSMM priors (duration). Please retrain the phase model.")
-            return False
-
-        # 转移矩阵 (log)
-        state_id_to_name = model_info.get("state_id_to_name", {})
-        state_names = [state_id_to_name.get(int(cid), str(cid)) for cid in clf_classes]
-        log_trans = ml._build_hsmm_log_trans(state_names)
-        # 初始分布 π：优先使用训练阶段从前缀末尾概率曲线估计的 pi_init；否则回退到均匀。
-        log_pi = np.full((len(state_names),), -np.log(len(state_names) + 1e-12), dtype=float)
-        try:
-            pi_init = prior.get("pi_init", None)
-            pi_classes = prior.get("pi_init_classes", prior.get("classes", None))
-            if (pi_init is not None) and (pi_classes is not None) and (len(pi_init) == len(pi_classes)) and len(pi_init) > 0:
-                cls2pi = {int(c): float(p) for c, p in zip(pi_classes, pi_init)}
-                S0 = float(len(state_names))
-                pi_vec = np.array([cls2pi.get(int(cid), 1.0 / max(1.0, S0)) for cid in clf_classes], dtype=float)
-                pi_vec = np.clip(pi_vec, 1e-12, None)
-                pi_vec = pi_vec / float(np.sum(pi_vec) + 1e-12)
-                log_pi = np.log(pi_vec)
-        except Exception:
-            pass
-
-        # 4) HSMM 解码
-        try:
-            z_hat = ml._hsmm_viterbi(log_emit, np.asarray(dmin, dtype=int), np.asarray(dmax, dtype=int), log_trans, log_pi)
-        except Exception as e:
-            QMessageBox.warning(viewer, "Auto Annotation", f"HSMM decoding failed: {e}")
-            return False
-
-        # 5) 生成 target_label 的连续区间
-        # 找 target_label 对应的 state id
-        name_to_stateid = {str(v): int(k) for k, v in state_id_to_name.items()}
-        if target_label not in name_to_stateid:
-            QMessageBox.information(viewer, "Auto Annotation", f"The current phase model does not contain state {target_label}; cannot output intervals for this label.")
-            return False
-
-        target_state_id = name_to_stateid[target_label]
-        # z_hat 是按 clf_classes 的索引输出的状态 index (0..S-1)，需要映射回 state id
-        # 先构建 index->state_id
-        idx_to_state_id = [int(cid) for cid in clf_classes]
-        z_state_ids = np.array([idx_to_state_id[int(k)] for k in z_hat], dtype=int)
-
-        new_segments = ml._state_seq_to_segments(times, idx_unr, z_state_ids, target_state_id, float(min_dur_sec))
-        if not new_segments:
-            QMessageBox.information(viewer, "Auto Annotation", "No candidate phase intervals were detected in the unreviewed region.")
-            return False
-
-        # 6) 与已有人工标注去重 (同标签且高度重叠跳过)
-        manual_segs = viewer.get_manual_segments_for_label(target_label)
-
-        def overlap_ratio(seg, base):
-            s1, e1 = seg
-            s2, e2 = base
-            inter = min(e1, e2) - max(s1, s2)
-            if inter <= 0:
-                return 0.0
-            return inter / max(e1 - s1, 1e-6)
-
-        final_segments = []
-        for (s, e) in new_segments:
-            skip = False
-            for (ms, me) in manual_segs:
-                if overlap_ratio((s, e), (ms, me)) >= 0.5:
-                    skip = True
-                    break
-            if not skip:
-                final_segments.append((s, e))
-
-        if not final_segments:
-            QMessageBox.information(viewer, "Auto Annotation", "Candidate intervals highly overlap with existing manual annotations; no machine annotations were added.")
-            return False
-
-        # 7) 写入 annotations
-        if not hasattr(viewer, "annotations"):
-            viewer.annotations = []
-
-        for (s, e) in final_segments:
-            viewer.finalize_annotation(s, e, text=target_label, source="ml")
-
-        QMessageBox.information(viewer, "Auto Annotation", f"Phase '{target_label}' added {len(final_segments)} machine-annotation segments in the unreviewed region.")
-        return True
+        return apply_phase_model(self.owner, label, min_dur_sec=min_dur_sec)
 
 
     # ------------------- HSMM helpers (phase only) -------------------
@@ -725,358 +255,39 @@ class MLService:
                               neg_pos_ratio=5,
                               random_state=None,
                               model_kind="event"):
+        """Train event model, delegating to respanno.ml.classifier."""
+        from respanno.ml.classifier import train_event_model
 
-        """
-        训练单标签帧级分类器 (并输出更完整的训练集报告)：
-        - label: 目标标签 (如 'Wheeze')
-        - min_pos_frames: 至少需要多少个正样本帧才开始训练
-        - neg_pos_ratio: 负样本采样比例 (负样本数 ≈ ratio * 正样本数)
-
-        增强项：
-        - 训练时进行Feature selection (默认启用：互信息 SelectKBest)
-        - 学习完成后除 P/R/F1 外，额外输出 Acc/Spec/BAcc/MCC/AUROC/AUPRC/Brier/Confusion
-        """
-        self = self.owner
-        # ---------- 可调的Feature selection策略 (默认开启) ----------
-        FS_ENABLE = True
-        FS_KBEST = 20  # 互信息 Top-K (若特征维度不足会自动缩小)
-
-        # 1) 准备特征 & 帧标签
-        self.ensure_frame_features()
-        if self.stft_features is None or self.stft_frame_times is None:
-            QMessageBox.information(self, "Machine Learning",
-                                    "No available short-time features; cannot train the model.")
-            return False
-
-        y = self.build_frame_labels_for_tag(label, neg_margin=0.05)
-        if y is None:
-            QMessageBox.information(self, "Machine Learning",
-                                    f"Label {label}  has no available frames in the reviewed region; cannot train.")
-            return False
-
-        y = np.asarray(y, dtype=np.int8)
-        idx_pos = np.where(y == 1)[0]
-        idx_neg = np.where(y == 0)[0]
-
-        n_pos = int(len(idx_pos))
-        n_neg_all = int(len(idx_neg))
-
-        if n_pos < int(min_pos_frames):
-            QMessageBox.information(
-                self, "Machine Learning",
-                f"Label {label} has only {n_pos} positive frames, less than the minimum requirement of {min_pos_frames}; training is skipped.")
-            return False
-
-        if n_neg_all == 0:
-            QMessageBox.information(
-                self, "Machine Learning",
-                f"Label {label} has no available safe negative frames; training is skipped.")
-            return False
-
-        # 2) 负样本均匀随机下采样，控制比例
-        ratio = max(1, int(neg_pos_ratio))
-        n_neg_target = int(min(n_neg_all, ratio * n_pos))
-
-        rng = np.random.default_rng(random_state)
-        idx_neg_sample = rng.choice(idx_neg, size=n_neg_target, replace=False)
-
-        idx_all = np.concatenate([idx_pos, idx_neg_sample])
-        rng.shuffle(idx_all)
-
-        X = self.stft_features[idx_all, :]
-        y_train = (y[idx_all] == 1).astype(int)  # {0,1}
-
-        # 3) Feature selection + 标准化 + LightGBM
-        D_all = int(X.shape[1])
-        use_fs = bool(FS_ENABLE and D_all > 4)
-        k_best = int(min(FS_KBEST, max(2, D_all)))
-
-        steps = [("scaler", StandardScaler())]
-        if use_fs:
-            steps.append(("select", SelectKBest(score_func=mutual_info_classif, k=k_best)))
-
-        if LGBMClassifier is None:
-            QMessageBox.warning(self, "Machine Learning",
-                                "lightgbm is not installed; cannot train a LightGBM model. Please run: pip install lightgbm")
-            return False
-
-        n_pos_train = int(np.sum(y_train == 1))
-        n_neg_train = int(np.sum(y_train == 0))
-        scale_pos_weight = float(n_neg_train) / float(max(1, n_pos_train))
-
-        clf = LGBMClassifier(
-            objective="binary",
-            n_estimators=500,
-            learning_rate=0.05,
-            num_leaves=31,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            min_child_samples=20,
-            reg_lambda=1.0,
-            scale_pos_weight=scale_pos_weight,
-            random_state=int(random_state) if random_state is not None else 0,
-            n_jobs=1
-        )
-        steps.append(("clf", clf))
-        pipe = Pipeline(steps)
-        pipe.fit(X, y_train)
-
-        # 4) 在训练集上自动选一个合适的概率阈值 (最大化 F1)
-        proba = pipe.predict_proba(X)[:, 1]
-        best_th = 0.5
-        best_f1 = -1.0
-
-        for th in np.linspace(0.3, 0.9, 13):
-            y_pred = (proba >= th).astype(int)
-            f1 = f1_score(y_train, y_pred)
-            if f1 > best_f1:
-                best_f1 = float(f1)
-                best_th = float(th)
-
-        y_pred_best = (proba >= best_th).astype(int)
-        precision, recall, f1_final, _ = precision_recall_fscore_support(
-            y_train, y_pred_best, average="binary", zero_division=0
+        return train_event_model(
+            self.owner, label,
+            min_pos_frames=min_pos_frames,
+            neg_pos_ratio=neg_pos_ratio,
+            random_state=random_state,
+            model_kind=model_kind,
         )
 
-        # 5) 更多训练集指标 (便于科研报告与调参)
-        tn, fp, fn, tp = confusion_matrix(y_train, y_pred_best, labels=[0, 1]).ravel()
-        acc = accuracy_score(y_train, y_pred_best)
-        bacc = balanced_accuracy_score(y_train, y_pred_best)
-        mcc = matthews_corrcoef(y_train, y_pred_best)
-        specificity = float(tn) / (float(tn + fp) + 1e-12)
-        npv = float(tn) / (float(tn + fn) + 1e-12)
-        auc_roc = roc_auc_score(y_train, proba)
-        auc_pr = average_precision_score(y_train, proba)
-        brier = brier_score_loss(y_train, proba)
 
-        # 6) Feature selection结果 (用于输出与可解释性)
-        full_names = list(self.stft_feature_names)
-        selected_idx = list(range(D_all))
-        if use_fs and "select" in pipe.named_steps:
-            selected_idx = pipe.named_steps["select"].get_support(indices=True).tolist()
-        selected_names = [full_names[i] for i in selected_idx]
-
-        # LightGBM 特征重要性 (对应筛选后的特征顺序)
-        top_k_show = int(min(8, len(selected_names)))
-        top_feats = []
-        importance_type = "gain"
-        top_feat_str = ""
-
-        try:
-            booster = pipe.named_steps["clf"].booster_
-            imp = booster.feature_importance(importance_type="gain")
-            order = np.argsort(imp)[::-1][:top_k_show]
-            top_feats = [(selected_names[i], float(imp[i])) for i in order]
-            top_feat_str = "\n".join([f"  - {n}: {v:.4f}" for n, v in top_feats])
-        except Exception:
-            try:
-                imp = pipe.named_steps["clf"].feature_importances_
-                importance_type = "split"
-                order = np.argsort(imp)[::-1][:top_k_show]
-                top_feats = [(selected_names[i], float(imp[i])) for i in order]
-                top_feat_str = "\n".join([f"  - {n}: {v:.4f}" for n, v in top_feats])
-            except Exception:
-                importance_type = "unknown"
-                top_feat_str = "  (无法获取特征重要性)"
-        # 7) 存到 self.ml_models，方便后续自动标注 / 可视化
-        self.ml_models[label] = {
-            "clf": pipe,
-            "threshold": float(best_th),
-            "model_kind": str(model_kind),
-            "feature_names": list(self.stft_feature_names),  # 输入特征空间 (全量)
-            "selected_feature_indices": [int(i) for i in selected_idx],
-            "selected_feature_names": list(selected_names),
-            "feature_select_method": "mutual_info_kbest" if use_fs else "none",
-            "feature_select_k": int(k_best) if use_fs else int(D_all),
-            "top_features_by_importance": list(top_feats),
-            "feature_importance_type": str(importance_type),
-            "n_pos": int(n_pos),
-            "n_neg": int(n_neg_target),
-            "train_precision": float(precision),
-            "train_recall": float(recall),
-            "train_f1": float(f1_final),
-            "train_accuracy": float(acc),
-            "train_specificity": float(specificity),
-            "train_npv": float(npv),
-            "train_bacc": float(bacc),
-            "train_mcc": float(mcc),
-            "train_auc_roc": float(auc_roc),
-            "train_auc_pr": float(auc_pr),
-            "train_brier": float(brier),
-            "confusion": {"tp": int(tp), "fp": int(fp), "tn": int(tn), "fn": int(fn)},
-        }
-
-        QMessageBox.information(
-            self, "Machine Learning",
-            (f"Trained label '{label}' frame-level model:\n"
-             f"Positive frames: {n_pos}, sampled negative frames: {n_neg_target}\n"
-             f"Threshold (best training F1) = {best_th:.2f}\n"
-             f"P={precision:.3f}, R={recall:.3f}, F1={f1_final:.3f}, Acc={acc:.3f}, Spec={specificity:.3f}\n"
-             f"BAcc={bacc:.3f}, MCC={mcc:.3f}, AUROC={auc_roc:.3f}, AUPRC={auc_pr:.3f}, Brier={brier:.4f}\n"
-             f"Confusion: TP={tp}, FP={fp}, TN={tn}, FN={fn}\n"
-             f"Feature selection: {'MI-TopK' if use_fs else 'None'} (kept {len(selected_names)}/{D_all})\n"
-             f"Top features (importance-{importance_type}):\n{top_feat_str}")
-        )
-
-        return True
 
 
     def apply_event_model_for_label_on_unreviewed(self,
                                             label,
                                             min_dur_sec=0.05,
                                             expected_model_kinds=None):
-        """
-        使用已经训练好的模型，在“未审阅区域” (帧Time > reviewed_prefix)Auto Annotation指定标签。
-        生成的标注统一以 (start, end, label, "ml") 形式写入 self.annotations。
-        """
-        self = self.owner
-        # 1) 检查模型是否存在
-        if not hasattr(self, "ml_models") or label not in self.ml_models:
-            QMessageBox.information(
-                self, "Auto Annotation",
-                f"Label {label} has no trained model yet. Please train this label model first."
-            )
-            return False
-        self.clear_ml_annotations_for_label(label)  # 清除上次Machine Learning的标记
+        """Apply event model, delegating to respanno.ml.classifier."""
+        from respanno.ml.classifier import apply_event_model
 
-        model_info = self.ml_models[label]
-        # 类型检查：为后续“异常音/其他事件”分离模型与后处理做准备
-        if expected_model_kinds is not None:
-            try:
-                mk = str(model_info.get("model_kind", "event"))
-            except Exception:
-                mk = "event"
-            if mk not in set(expected_model_kinds):
-                QMessageBox.information(
-                    self, "Auto Annotation",
-                    f"Label {label} has a mismatched model type (current: {mk}). Please retrain the model for this label type."
-                )
-                return False
-        clf = model_info["clf"]
-        th = float(model_info.get("threshold", 0.5))
-
-        # 2) 准备帧级特征与Time轴
-        self.ensure_frame_features()
-        times = getattr(self, "stft_frame_times", None)
-        X = getattr(self, "stft_features", None)
-        if times is None or X is None or len(times) == 0:
-            QMessageBox.information(
-                self, "Auto Annotation",
-                "No available short-time features; cannot auto-label."
-            )
-            return False
-
-        times = np.asarray(times, dtype=float)
-
-        # 3) 求“已审阅前缀”，只在未审阅区域应用模型
-        T_used = self.get_reviewed_prefix()
-        if T_used is None or T_used <= 0:
-            QMessageBox.information(
-                self, "Auto Annotation",
-                "No manual annotations yet; cannot determine the unreviewed region."
-            )
-            return False
-
-        idx_unr = np.where(times > T_used)[0]
-        if idx_unr.size == 0:
-            QMessageBox.information(
-                self, "Auto Annotation",
-                "The current record has already been fully reviewed; there are no unreviewed frames."
-            )
-            return False
-
-        # 4) 在未审阅帧上跑模型，得到帧级 0/1
-        X_unr = X[idx_unr, :]
-        try:
-            proba = clf.predict_proba(X_unr)[:, 1]
-        except Exception as e:
-            QMessageBox.warning(
-                self, "Auto Annotation",
-                f"Model prediction failed: {e}"
-            )
-            return False
-
-        y_hat = (proba >= th).astype(int)
-
-        # 5) 把连续的 1 合并成区间，并过滤掉太短的事件
-        new_segments = []
-        in_run = False
-        start_i = None
-        for i, v in enumerate(y_hat):
-            if v == 1 and not in_run:
-                in_run = True
-                start_i = i
-            elif v == 0 and in_run:
-                frame_idxs = idx_unr[start_i:i]
-                s = float(times[frame_idxs[0]])
-                e = float(times[frame_idxs[-1]])
-                if e - s >= min_dur_sec:
-                    new_segments.append((s, e))
-                in_run = False
-                start_i = None
-
-        # 尾段收尾
-        if in_run and start_i is not None:
-            frame_idxs = idx_unr[start_i:len(y_hat)]
-            s = float(times[frame_idxs[0]])
-            e = float(times[frame_idxs[-1]])
-            if e - s >= min_dur_sec:
-                new_segments.append((s, e))
-
-        if not new_segments:
-            QMessageBox.information(
-                self, "Auto Annotation",
-                "No candidate events were detected in the unreviewed region."
-            )
-            return False
-
-        # 6) 与已有人工标注做简单去重：同标签且高度重叠的段直接跳过
-        manual_segs = self.get_manual_segments_for_label(label)
-
-        def overlap_ratio(seg, base):
-            s1, e1 = seg
-            s2, e2 = base
-            inter = min(e1, e2) - max(s1, s2)
-            if inter <= 0:
-                return 0.0
-            return inter / max(e1 - s1, 1e-6)
-
-        final_segments = []
-        for (s, e) in new_segments:
-            skip = False
-            for (ms, me) in manual_segs:
-                if overlap_ratio((s, e), (ms, me)) >= 0.5:
-                    skip = True
-                    break
-            if not skip:
-                final_segments.append((s, e))
-
-        if not final_segments:
-            QMessageBox.information(
-                self, "Auto Annotation",
-                "Candidate events highly overlap with existing manual annotations; no machine annotations were added."
-            )
-            return False
-
-        # 7) 直接调用 finalize_annotation，画框 + 写入 annotations，标记 source='ml'
-        if not hasattr(self, "annotations"):
-            self.annotations = []
-
-        for (s, e) in final_segments:
-            # 这里传 text=label，所以不会弹出对话框；source 标记为 'ml'
-            self.finalize_annotation(s, e, text=label, source="ml")
-
-        # 不需要再手动排序 / 重绘，finalize_annotation 已经做了界面更新
-        QMessageBox.information(
-            self, "Auto Annotation",
-            f"Label '{label}' added {len(final_segments)} machine-annotation segments in the unreviewed region."
+        return apply_event_model(
+            self.owner, label,
+            min_dur_sec=min_dur_sec,
+            expected_model_kinds=expected_model_kinds,
         )
-        return True
+
+
 
 
 '''
         # 8) 刷新界面：这里有两种情况
-        #    - 如果你有专门的“从 annotations 重画所有 BoxSpan/红区”的函数，可以在此调用
+        #    - 如果你有专门的"从 annotations 重画所有 BoxSpan/红区"的函数，可以在此调用
         #    - 如果没有，而是标注都是通过 finalize_annotation 创建的，可后续考虑加个重绘函数
         try:
             # 如果你有类似的统一刷新函数，可以替换成自己的
@@ -1120,7 +331,7 @@ class AudioViewer(QMainWindow):
         self.neg_segments = defaultdict(list)
         self._neg_id_counter = 0
 
-        # —— 最小撤销栈 (用于“删除/认可”等编辑操作的撤销)——
+        # —— 最小撤销栈 (用于"删除/认可"等编辑操作的撤销)——
         self._undo_stack = []
         self._undo_maxlen = 100
 
@@ -1284,7 +495,7 @@ class AudioViewer(QMainWindow):
         self.shortcut_undo2.setContext(Qt.ApplicationShortcut)
         self.shortcut_undo2.activated.connect(self.undo_last_action)
 
-        # 如果存在其他控件/动作也绑定了 Ctrl+Z，Qt 可能判定为“快捷键歧义”，此时会触发 activatedAmbiguously 而不是 activated
+        # 如果存在其他控件/动作也绑定了 Ctrl+Z，Qt 可能判定为"快捷键歧义"，此时会触发 activatedAmbiguously 而不是 activated
         try:
             self.shortcut_undo.activatedAmbiguously.connect(self.undo_last_action)
             self.shortcut_undo2.activatedAmbiguously.connect(self.undo_last_action)
@@ -1535,7 +746,6 @@ class AudioViewer(QMainWindow):
 
     def init_ml_toolbar(self):
         """初始化Machine Learning相关工具栏：标签选择 + 训练 + Auto Annotation"""
-        from PyQt5.QtWidgets import QToolBar
 
         toolbar = QToolBar("Machine Learning", self)
         self.addToolBar(Qt.TopToolBarArea, toolbar)
@@ -1608,8 +818,6 @@ class AudioViewer(QMainWindow):
 
     def show_annotation_legend(self):
         """按代码中的预设标签和颜色映射生成图例。"""
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QDialogButtonBox, QWidget
-        from PyQt5.QtCore import Qt
 
         def _color_for_label_direct(label):
             """优先使用 annotation_color_builtin；大小写不一致时做一次不区分大小写匹配。"""
@@ -2190,7 +1398,7 @@ class AudioViewer(QMainWindow):
             self.selected_features = dlg.get_selected_features()  # 新增
             self.last_settings_tab_index = dlg.tabs.currentIndex()
 
-            # 新增：保存“读取时预处理”和“自动标签读取参数”。不立即重读当前音频，避免影响现有编辑状态；下次 load_audio 生效。
+            # 新增：保存"读取时预处理"和"自动标签读取参数"。不立即重读当前音频，避免影响现有编辑状态；下次 load_audio 生效。
             try:
                 pp = dlg.get_preprocessing_settings()
                 self.preprocessing_enabled = bool(pp.get("preprocessing_enabled", True))
@@ -2297,7 +1505,7 @@ class AudioViewer(QMainWindow):
     def export_annotations(self):
         # 过滤掉 None，并兼容 3/4 元组。
         # 注意：后续会引入更多 source (如 auto_accepted/auto_edited/merged/...)。
-        # 这里先把“已归档/隐藏”的标注 (source='archived')排除在导出之外。
+        # 这里先把"已归档/隐藏"的标注 (source='archived')排除在导出之外。
         rows = []
         for item in getattr(self, "annotations", []):
             if item is None:
@@ -2394,7 +1602,7 @@ class AudioViewer(QMainWindow):
                 idx = None
                 old_item = None
 
-            # 先记录硬负样本 (按“被删除的标签”记负样本，而不是当前训练类型)
+            # 先记录硬负样本 (按"被删除的标签"记负样本，而不是当前训练类型)
             neg_item = None
             if record_negative and old_item is not None:
                 try:
@@ -2557,7 +1765,7 @@ class AudioViewer(QMainWindow):
         try:
             sp = BoxSpan(start, end, y0, self.LANE_H, text, self, label_color=label_color)
         except Exception:
-            # 若 BoxSpan 初始化失败，撤销无法Resume；不要静默吞掉 (避免“看起来不触发”)
+            # 若 BoxSpan 初始化失败，撤销无法Resume；不要静默吞掉 (避免"看起来不触发")
             return
 
         sp.setPen(pen)
@@ -2594,7 +1802,7 @@ class AudioViewer(QMainWindow):
 
 
     def _clear_annotation_view_only(self):
-        """仅清空“可视化对象” (BoxSpan / STFT高光等)，不清空 annotations/neg/undo 等数据。
+        """仅清空"可视化对象" (BoxSpan / STFT高光等)，不清空 annotations/neg/undo 等数据。
         用于视图与数据不同步时的重建兜底。"""
         # 1) BoxSpan 及其文字
         try:
@@ -2663,7 +1871,7 @@ class AudioViewer(QMainWindow):
         # 清空视图
         self._clear_annotation_view_only()
 
-        # 复位 Y 轴Display范围 (避免“画出来但看不到”)
+        # 复位 Y 轴Display范围 (避免"画出来但看不到")
         try:
             H = self.MAX_LANES * (self.LANE_H + self.LANE_GAP)
             self.annot_plot.setYRange(0, H)
@@ -2730,7 +1938,7 @@ class AudioViewer(QMainWindow):
         return True
 
     def undo_last_action(self):
-        """撤销最后一次“删除/改 source”等编辑动作。"""
+        """撤销最后一次"删除/改 source"等编辑动作。"""
         try:
             if not self._undo_stack:
                 return
@@ -2855,7 +2063,7 @@ class AudioViewer(QMainWindow):
             return
 
     def accept_annotation(self, target, accepted_source: str = "auto_accepted"):
-        """把机器标记置为“已认可”，默认 source=auto_accepted (可撤销)。"""
+        """把机器标记置为"已认可"，默认 source=auto_accepted (可撤销)。"""
         return self.set_annotation_source(target, accepted_source, push_undo=True)
 
     # ==========================
@@ -2977,7 +2185,7 @@ class AudioViewer(QMainWindow):
         else:
             label_color = QColor(255, 0, 0)  # 机器标注 → 红字
 
-        # —— 画彩色“盒条”
+        # —— 画彩色"盒条"
         span = BoxSpan(start, end, y0, self.LANE_H, text, self, label_color=label_color)
         span.setPen(pen)
         try:
@@ -3052,206 +2260,76 @@ class AudioViewer(QMainWindow):
     # =========================
     # 自动导入同名 _events 标注 (可开关)
     # =========================
+
+    def _get_events_indexer(self):
+        """Lazy-initialize the EventsFileIndexer."""
+        if not hasattr(self, "_events_indexer"):
+            from respanno.labels.events_importer import EventsFileIndexer
+
+            self._events_indexer = EventsFileIndexer(self)
+        return self._events_indexer
+
+
     def toggle_auto_import_events(self, checked: bool):
-        """
-        开关：自动导入与当前 WAV 同名的 *_events.(csv|txt) 标注File。
-        仅在开关开启后，后续 load_audio() 才会自动走导入流程。
-        点击开关时允许有一次预索引延迟，以减少后续加载的延迟。
-        """
+        """Toggle auto-import of matching _events files, delegating to EventsFileIndexer."""
         self.auto_import_events_enabled = bool(checked)
 
-        # 允许开关点击时有一定延迟：预索引当前音频目录
         if self.auto_import_events_enabled:
             wav_path = getattr(self, "loaded_filename", None)
             if wav_path and isinstance(wav_path, str):
                 folder = os.path.dirname(os.path.abspath(wav_path))
-                self._prepare_events_index(folder)
+                self._get_events_indexer().build_index(folder)
 
-        # 轻量Notice (不弹窗)
         try:
             msg = "Auto-import matching _events annotations: enabled" if self.auto_import_events_enabled else "Auto-import matching _events annotations: disabled"
             self.statusBar().showMessage(msg, 2000)
         except Exception:
             pass
 
+
+
     def _get_auto_label_import_settings(self):
-        """返回自动标签读取配置，并补齐默认值。"""
-        default_cfg = {
-            "file_format": "auto",
-            "file_suffix": "_events",
-            "delimiter": "auto",
-            "custom_delimiter": "",
-            "skip_header_lines": 0,
-            "start_col": 1,
-            "end_col": 2,
-            "label_col": 3,
-            "source_col": 4,
-            "json_start_key": "start",
-            "json_end_key": "end",
-            "json_label_key": "label",
-            "json_source_key": "source",
-        }
-        try:
-            cfg = dict(getattr(self, "auto_label_import_settings", {}) or {})
-        except Exception:
-            cfg = {}
-        default_cfg.update(cfg)
-        return default_cfg
+        """Return merged auto-import settings, delegating to EventsFileIndexer."""
+        return self._get_events_indexer()._get_settings()
+
+
 
     def _auto_label_candidate_extensions(self):
-        """根据 Settings 中的 file_format 返回自动匹配标签文件的扩展名优先级。"""
-        cfg = self._get_auto_label_import_settings()
-        fmt = str(cfg.get("file_format", "auto")).strip().lower()
-        if fmt in {"csv", "txt", "json"}:
-            return [fmt]
-        # 保持旧逻辑优先 csv/txt；新增 json 作为第三优先级。
-        return ["csv", "txt", "json"]
+        """Return candidate file extensions, delegating to EventsFileIndexer."""
+        return self._get_events_indexer()._candidate_extensions()
+
+
 
     def _prepare_events_index(self, folder: str):
-        """
-        为某个目录建立自动标签文件索引。
-        新增支持：Settings 中可配置文件格式(csv/txt/json)、文件后缀，默认仍为 <wav_base>_events.csv/txt。
-        """
-        try:
-            folder = os.path.abspath(folder)
-        except Exception:
-            return
+        """Build events file index, delegating to EventsFileIndexer."""
+        self._get_events_indexer().build_index(folder)
 
-        if not hasattr(self, "_events_index_cache"):
-            self._events_index_cache = {}
 
-        if folder in self._events_index_cache:
-            return
-
-        cfg = self._get_auto_label_import_settings()
-        suffix = str(cfg.get("file_suffix", "_events") or "_events")
-        suffix_low = suffix.lower()
-        exts = self._auto_label_candidate_extensions()
-        ext_rank = {ext: i for i, ext in enumerate(exts)}
-
-        mapping = {}
-        try:
-            for ent in os.scandir(folder):
-                if not ent.is_file():
-                    continue
-                name = ent.name
-                low = name.lower()
-                for ext in exts:
-                    tail = f"{suffix_low}.{ext}"
-                    if low.endswith(tail):
-                        base = name[:-len(tail)].lower()
-                        old_path = mapping.get(base)
-                        if old_path is None:
-                            mapping[base] = ent.path
-                        else:
-                            try:
-                                old_ext = os.path.splitext(old_path)[1].lower().lstrip(".")
-                                if ext_rank.get(ext, 999) < ext_rank.get(old_ext, 999):
-                                    mapping[base] = ent.path
-                            except Exception:
-                                pass
-                        break
-        except Exception:
-            mapping = {}
-
-        self._events_index_cache[folder] = mapping
 
     def _resolve_events_path_for_wav(self, wav_path: str):
-        """
-        解析 wav 对应的自动标签文件路径。
-        默认仍查找 <wav_base>_events.csv / .txt；也可在 Settings 中指定 json 或自定义后缀。
-        """
-        if not wav_path or not isinstance(wav_path, str):
-            return None
-        wav_path = os.path.abspath(wav_path)
-        folder = os.path.dirname(wav_path)
-        wav_base = os.path.splitext(os.path.basename(wav_path))[0]
-        key = wav_base.lower()
+        """Resolve matching events file path, delegating to EventsFileIndexer."""
+        return self._get_events_indexer().resolve_path(wav_path)
 
-        self._prepare_events_index(folder)
-        mapping = self._events_index_cache.get(folder, {})
 
-        p = mapping.get(key)
-        if p and os.path.isfile(p):
-            return p
-
-        # 目录索引可能早于文件创建；按当前 Settings 做一次 O(扩展名数) existence check 并回填。
-        cfg = self._get_auto_label_import_settings()
-        suffix = str(cfg.get("file_suffix", "_events") or "_events")
-        for ext in self._auto_label_candidate_extensions():
-            cand = os.path.join(folder, f"{wav_base}{suffix}.{ext}")
-            if os.path.isfile(cand):
-                mapping[key] = cand
-                self._events_index_cache[folder] = mapping
-                return cand
-
-        return None
 
     def _parse_events_file(self, events_path: str):
-        """解析自动导入的 events 文件，返回标准 annotation dict 列表。
+        """Parse events file, delegating to EventsFileIndexer."""
+        return self._get_events_indexer().parse_file(events_path)
 
-        委托 respanno.labels.annotation_io.read_annotations，支持 csv / txt / json，
-        默认配置保持旧行为：自动分隔符，前 3 列 start/end/label，第 4 列 source 可选。
-        """
-        from respanno.labels.annotation_io import read_annotations
 
-        cfg = self._get_auto_label_import_settings()
-        return read_annotations(events_path, cfg)
 
 
     def _parse_events_file_cached(self, events_path: str):
-        """
-        带 mtime 的解析缓存，避免重复 I/O + parse。
-        """
-        if not hasattr(self, "_events_parse_cache"):
-            self._events_parse_cache = {}
+        """Parse events file with caching, delegating to EventsFileIndexer."""
+        return self._get_events_indexer().parse_file_cached(events_path)
 
-        try:
-            p = os.path.abspath(events_path)
-            mtime = os.path.getmtime(p)
-        except Exception:
-            return []
 
-        cached = self._events_parse_cache.get(p)
-        if cached and isinstance(cached, tuple) and len(cached) == 2 and cached[0] == mtime:
-            return cached[1]
-
-        rows = self._parse_events_file(p)
-        self._events_parse_cache[p] = (mtime, rows)
-        return rows
 
     def _auto_import_events_for_wav(self, wav_path: str):
-        """
-        在不弹窗的前提下，自动导入与 wav 同名的 *_events.(csv|txt) File。
-        仅负责导入；清空标注由调用方决定 (load_audio 已清空)。
-        """
-        events_path = self._resolve_events_path_for_wav(wav_path)
-        if not events_path:
-            return  # 静默跳过
+        """Auto-import matching events file, delegating to EventsFileIndexer."""
+        self._get_events_indexer().auto_import(wav_path)
 
-        rows = self._parse_events_file_cached(events_path)
-        if not rows:
-            return
 
-        n_ok = 0
-        for ann in rows:
-            try:
-                s, e, lab = float(ann["start"]), float(ann["end"]), str(ann["label"])
-                src = str(ann.get("source", "manual") or "manual")
-                if e <= s:
-                    continue
-                self.finalize_annotation(s, e, lab, source=src)
-                n_ok += 1
-            except Exception:
-                continue
-
-        # 轻量Notice (不弹窗)
-        try:
-            self.statusBar().showMessage(
-                f"Auto-imported events annotations: {os.path.basename(events_path)} ({n_ok} items)", 2500
-            )
-        except Exception:
-            pass
     def toggle_analysis_mode(self):
         cur = self.spec_stack.currentWidget()
         if cur is self.spec_stft_plot:
@@ -3272,38 +2350,22 @@ class AudioViewer(QMainWindow):
             self.freq_button.setText("Switch: FFT")
 
     def show_fft(self):
-        if self.audio is None:
+        if self.audio is None or self.sr is None:
             return
 
-        from scipy.fft import rfft, rfftfreq
-        N = len(self.audio)
-        if N == 0 or self.sr is None or self.sr == 0:
+        from respanno.dsp.fft import compute_fft
+
+        freqs, mag = compute_fft(self.audio, self.sr, max_points=50000)
+        if freqs.size == 0:
             return
-
-        fft_y = np.abs(rfft(self.audio))
-        fft_x = rfftfreq(N, d=1 / self.sr)
-
-        # FFT 仅用于显示时也做抽稀，避免长音频频谱曲线点数过多。
-        try:
-            max_fft_points = 50000
-            if fft_x.size > max_fft_points:
-                idx_fft = np.linspace(0, fft_x.size - 1, max_fft_points).astype(int)
-                fft_x_plot = fft_x[idx_fft]
-                fft_y_plot = fft_y[idx_fft]
-            else:
-                fft_x_plot = fft_x
-                fft_y_plot = fft_y
-        except Exception:
-            fft_x_plot = fft_x
-            fft_y_plot = fft_y
 
         self.spec_fft_plot.clear()
-        self.spec_fft_plot.plot(fft_x_plot, fft_y_plot, pen='c')
+        self.spec_fft_plot.plot(freqs, mag, pen='c')
         self.spec_fft_plot.setLabel('bottom', 'Frequency', units='Hz')
         self.spec_fft_plot.setLabel('left', 'Amplitude')
 
         x_max = self.sr / 2
-        y_max = float(np.max(fft_y)) if fft_y.size else 1.0
+        y_max = float(np.max(mag)) if mag.size else 1.0
         if y_max <= 0:
             y_max = 1.0
         self.spec_fft_plot.setXRange(0, x_max, padding=0.02)
@@ -3313,17 +2375,17 @@ class AudioViewer(QMainWindow):
         self.fft_dirty = False
 
     def update_fft(self):
-        if self.audio is None:
+        if self.audio is None or self.sr is None:
             return
 
-        freqs = np.fft.rfftfreq(len(self.audio), d=1 / self.sr)
-        spectrum = np.abs(np.fft.rfft(self.audio))
+        from respanno.dsp.fft import compute_fft
+
+        freqs, spectrum = compute_fft(self.audio, self.sr)
 
         self.fft_curve.setData(freqs, spectrum)
         self.spec_fft_plot.setLabel('left', "Amplitude", units='')
         self.spec_fft_plot.setLabel('bottom', "Frequency", units='Hz')
 
-        # 恢复原始视图范围
         self.spec_fft_plot.setXRange(freqs[0], freqs[-1], padding=0.05)
         self.spec_fft_plot.setYRange(0, np.max(spectrum) * 1.05)
         vb = self.spec_fft_plot.getViewBox()
@@ -3489,13 +2551,13 @@ class AudioViewer(QMainWindow):
 
     def _iter_manual_annotations(self):
         """
-        统一遍历“可用于训练/视为已审阅”的标注区间：
+        统一遍历"可用于训练/视为已审阅"的标注区间：
         - 兼容 (start, end, label) 和 (start, end, label, source) 两种形式
         - 三元组一律视为人工标注 (source='manual')
-        - 四元组根据 source 是否属于“已审阅集合”决定
+        - 四元组根据 source 是否属于"已审阅集合"决定
 
         说明：本函数名为了兼容旧代码保留为 _iter_manual_annotations，
-        但其语义已升级为“reviewed annotations”。
+        但其语义已升级为"reviewed annotations"。
         """
 
         def _norm_src(x):
@@ -3504,8 +2566,8 @@ class AudioViewer(QMainWindow):
             except Exception:
                 return ""
 
-        # 先搭“source 状态机”的基础：后续会逐步引入更多状态。
-        # reviewed: 参与“已审阅前缀”统计；trainable: 可进入下一轮训练的正样本标注。
+        # 先搭"source 状态机"的基础：后续会逐步引入更多状态。
+        # reviewed: 参与"已审阅前缀"统计；trainable: 可进入下一轮训练的正样本标注。
         reviewed_sources = {
             "manual",
             "auto_accepted",
@@ -3534,108 +2596,35 @@ class AudioViewer(QMainWindow):
                 yield float(s), float(e), str(t)
 
     def get_manual_segments_for_label(self, label):
-        """
-        返回当前Label label 的所有“已审阅/可训练 (正样本)”区间 [(s, e), ...]。
-        - 三元组默认视为人工标注 (视为已审阅)
-        - 四元组若 source 属于 reviewed_sources，则计入
-        """
-        segs = []
-        for s, e, t in self._iter_manual_annotations():
-            if t == label:
-                segs.append((s, e))
-        return segs
+        """Return [(s, e), ...] for reviewed annotations matching label, delegating."""
+        from respanno.ml.frame_labels import get_manual_segments
+
+        return get_manual_segments(self.annotations, label)
+
+
 
     def get_reviewed_prefix(self):
-        """
-        返回“已审阅前缀”的长度 T (秒)：
-        - 遍历所有“已审阅标注” (包括三元组和 reviewed_sources 中的四元组)
-        - 取它们 end 的最大值
-        """
-        T = 0.0
-        for s, e, _ in self._iter_manual_annotations():
-            T = max(T, e)
-        return float(T)
+        """Return max end time among reviewed annotations, delegating."""
+        from respanno.ml.frame_labels import get_reviewed_prefix
+
+        return get_reviewed_prefix(self.annotations)
+
+
 
     def build_frame_labels_for_tag(self, label, neg_margin=0.05):
-        """
-        针对单一Label label (例如 'Wheeze')构建帧级标签向量 y。
-
-        返回:
-            y: shape (T,), 值 ∈ {1, 0, -1}
-               1: 该帧是 label 的正样本 (整段 [s, e] 全部算正样本)
-               0: 安全负样本 (前缀内、且距离任意正样本段 >= neg_margin)
-              -1: 忽略 (不参与训练)
-        """
-        # 确保已经有帧级特征和Time轴
+        """Build frame-level labels, delegating to respanno.ml.frame_labels."""
         self.ensure_frame_features()
-        times = self.stft_frame_times
+        from respanno.ml.frame_labels import build_frame_labels
 
-        # 没有特征，直接放弃
-        if times is None or len(times) == 0:
-            return None
+        return build_frame_labels(
+            self.annotations,
+            self.stft_frame_times,
+            label,
+            neg_segments=getattr(self, "neg_segments", None),
+            neg_margin=neg_margin,
+        )
 
-        times = np.asarray(times, dtype=float)
 
-        # 已审阅前缀 (只用前缀内的帧参与训练)
-        T_used = self.get_reviewed_prefix()
-        if T_used is None or T_used <= 0:
-            return None
-
-        # 先全部标为 -1 (忽略)
-        y = np.full(times.shape, -1, dtype=np.int8)
-
-        # 当前标签的人工标注段
-        segs_pos = self.get_manual_segments_for_label(label)
-
-        # ---------- 1) 标记正样本：整段 [s, e] 都算正样本 ----------
-        for (s, e) in segs_pos:
-            if e <= s:
-                continue
-            idx = np.where((times >= s) & (times <= e))[0]
-            y[idx] = 1
-
-        # ---------- 2) 构造扩展正区域掩码，用于排除“过近”的负样本 ----------
-        # mask_pos_ext = True 的地方表示“靠近正样本，不适合作为负样本”
-        mask_pos_ext = np.zeros_like(times, dtype=bool)
-        for (s, e) in segs_pos:
-            if e <= s:
-                continue
-            ext_start = max(0.0, s - neg_margin)
-            ext_end = e + neg_margin
-            if ext_end <= ext_start:
-                continue
-            idx = np.where((times >= ext_start) & (times <= ext_end))[0]
-            mask_pos_ext[idx] = True
-
-        # 前缀内帧
-        mask_prefix = (times <= T_used)
-
-        # ---------- 3) 标记安全负样本：在前缀内 & 不在扩展正区域内 & 当前不是正样本 ----------
-        idx_neg = np.where(mask_prefix & (~mask_pos_ext) & (y != 1))[0]
-        y[idx_neg] = 0
-
-        # ---------- 3.5) Machine Learning硬负样本：由“删除/纠正”产生，仅对被删除的标签生效 ----------
-        # 规则：只覆盖 -1/0，不覆盖正样本(1)；仅对前缀内帧生效。
-        try:
-            neg_list = getattr(self, "neg_segments", {}).get(label, [])
-        except Exception:
-            neg_list = []
-        if neg_list:
-            for it in neg_list:
-                try:
-                    s, e = float(it[0]), float(it[1])
-                except Exception:
-                    continue
-                if e <= s:
-                    continue
-                idx = np.where(mask_prefix & (times >= s) & (times <= e) & (y != 1))[0]
-                y[idx] = 0
-
-        # 若前缀内既没有 1 也没有 0，说明当前无法用于训练，返回 None
-        if not np.any(y == 1) and not np.any(y == 0):
-            return None
-
-        return y
 
     def clear_ml_annotations_for_label(self, label):
         return self.ml_service.clear_ml_annotations_for_label(**{k: v for k, v in locals().items() if k != 'self'})
