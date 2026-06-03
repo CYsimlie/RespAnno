@@ -1503,11 +1503,26 @@ class AudioViewer(QMainWindow):
         if end <= start:
             return
 
-        # —— 分轨策略（与 finalize_annotation 一致）——
+        try:
+            sp = self._render_annotation_span(start, end, text, source, idx=int(idx))
+        except Exception:
+            return
+        if sp is None:
+            return
+
+
+
+    def _render_annotation_span(self, start, end, text, source, idx=None):
+        """创建并渲染一个标注的 BoxSpan + STFT 高亮区域。
+
+        被 ``finalize_annotation`` 和 ``_restore_span_from_annotation``
+        共用，消除重复的分轨/颜色/笔刷/高亮逻辑。
+        """
+        # 分轨
         lane = self._pick_lane(start, end)
         y0 = lane * (self.LANE_H + self.LANE_GAP)
 
-        # —— 颜色与画笔（与 finalize_annotation 一致）——
+        # 颜色与笔刷
         color = self.get_annotation_color(text)
         try:
             pen = pg.mkPen(color, width=1)
@@ -1518,28 +1533,23 @@ class AudioViewer(QMainWindow):
             pen = pg.mkPen(255, 255, 255, 255, width=1)
             brush = pg.mkBrush(255, 255, 255, 255)
 
-        # source 非 manual 的标注使用红色文字
+        # 非 manual source 使用红色文字
         label_color = None if source == "manual" else QColor(255, 0, 0)
 
-        # —— 重建 BoxSpan（签名与 finalize_annotation 完全一致）——
-        try:
-            sp = BoxSpan(start, end, y0, self.LANE_H, text, self, label_color=label_color)
-        except Exception:
-            # BoxSpan 初始化失败时，撤销无法恢复，不静默吞掉异常
-            return
-
+        # BoxSpan
+        sp = BoxSpan(start, end, y0, self.LANE_H, text, self, label_color=label_color)
         sp.setPen(pen)
         try:
             sp.setBrush(brush)
         except Exception:
             pass
-
         self.annot_plot.addItem(sp)
         self._spans.append(sp)
         sp.lane = lane
-        self._span2idx[sp] = int(idx)
+        if idx is not None:
+            self._span2idx[sp] = int(idx)
 
-        # —— 频谱高亮区域（与 finalize_annotation 一致）——
+        # STFT 高亮
         try:
             spec_color = QColor(color)
             spec_color.setAlpha(50)
@@ -1547,19 +1557,15 @@ class AudioViewer(QMainWindow):
         except Exception:
             spec_brush = pg.mkBrush(255, 0, 0, 50)
 
-        try:
-            spec = pg.LinearRegionItem([start, end], brush=spec_brush)
-            spec.setMovable(False)
-            spec.setZValue(1)
-            # 允许高亮区域随编辑扩展到音频全时长（bounds 不锁定在初始区间）
-            _xmax = float(getattr(self, "duration", 0.0) or max(end, start, 0.0))
-            spec.setBounds([0.0, _xmax])
-            self.spec_stft_plot.addItem(spec)
-            self._span2spec[sp] = spec
-        except Exception:
-            pass
+        spec = pg.LinearRegionItem([start, end], brush=spec_brush)
+        spec.setMovable(False)
+        spec.setZValue(1)
+        _xmax = float(getattr(self, "duration", 0.0) or max(end, start, 0.0))
+        spec.setBounds([0.0, _xmax])
+        self.spec_stft_plot.addItem(spec)
+        self._span2spec[sp] = spec
 
-
+        return sp
 
     def _clear_annotation_view_only(self):
         """仅清空可视化对象（BoxSpan、STFT 高亮等），不清空 annotations/neg/undo 等数据。
@@ -1699,8 +1705,9 @@ class AudioViewer(QMainWindow):
             })
         return True
 
+    # ---- undo dispatcher -------------------------------------------------
     def undo_last_action(self):
-        """撤销最后一次编辑操作（删除、改 source 等）。"""
+        """撤销最后一次编辑操作（删除、改 source、编辑几何位置）。"""
         try:
             if not self._undo_stack:
                 return
@@ -1710,119 +1717,123 @@ class AudioViewer(QMainWindow):
 
         op = rec.get("op")
         if op == "delete":
-            idx = rec.get("idx")
-            item = rec.get("item")
-            neg_item = rec.get("neg_item")
-            if idx is None or item is None:
-                return
-            try:
-                if 0 <= int(idx) < len(self.annotations):
-                    self.annotations[int(idx)] = item
-                    self._restore_span_from_annotation(int(idx), item)
-                    # 兜底：若删除时映射未清理干净或恢复失败，强制重建整个标注视图
-                    try:
-                        if self._find_span_by_idx(int(idx)) is None:
-                            self.rebuild_annotation_view_from_data()
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-            if neg_item is not None:
-                try:
-                    lab = str(item[2])
-                    neg_id = int(neg_item[2])
-                    self.neg_manager.remove(lab, neg_id)
-                except Exception:
-                    pass
+            self._undo_delete(rec)
+        elif op == "edit_interval":
+            self._undo_edit_interval(rec)
+        elif op == "set_source":
+            self._undo_set_source(rec)
+
+    def _undo_delete(self, rec):
+        """撤销一次删除：恢复 annotations 条目 + 重建可视化 + 移除负样本。"""
+        idx = rec.get("idx")
+        item = rec.get("item")
+        neg_item = rec.get("neg_item")
+        if idx is None or item is None:
             return
-
-        if op == "edit_interval":
-            idx = rec.get("idx")
-            old_item = rec.get("old_item")
-            if idx is None or old_item is None:
-                return
-            try:
-                idx = int(idx)
-            except Exception:
-                return
-            try:
-                if 0 <= idx < len(self.annotations):
-                    self.annotations[idx] = old_item
-            except Exception:
-                pass
-
-            sp = None
-            try:
-                sp = self._find_span_by_idx(idx)
-            except Exception:
-                sp = None
-
-            if sp is not None:
+        try:
+            if 0 <= int(idx) < len(self.annotations):
+                self.annotations[int(idx)] = item
+                self._restore_span_from_annotation(int(idx), item)
+                # 兜底：恢复失败则重建整个视图
                 try:
-                    s0, s1 = float(old_item[0]), float(old_item[1])
-                    lab = str(old_item[2])
-                    src0 = str(old_item[3]) if len(old_item) >= 4 else "manual"
-
-                    # 回滚几何位置
-                    sp.setPos([s0, sp.y_base], update=False)
-                    sp.setSize([s1 - s0, sp.h_fix], update=False)
-
-                    # 文本/样式回滚
-                    sp.text = lab
-                    try:
-                        sp._update_label_html()
-                    except Exception:
-                        pass
-                    try:
-                        sp._apply_visual_style(src0)
-                    except Exception:
-                        pass
-
-                    # STFT 高光同步
-                    try:
-                        reg = getattr(self, "_span2spec", {}).get(sp)
-                        if reg is not None:
-                            reg.setRegion([s0, s1])
-                    except Exception:
-                        pass
-
-                    # 触发内部同步（不改变数据语义）
-                    try:
-                        sp._on_changed()
-                    except Exception:
-                        pass
-                except Exception:
-                    # 兜底：回滚失败则重建视图
-                    try:
+                    if self._find_span_by_idx(int(idx)) is None:
                         self.rebuild_annotation_view_from_data()
-                    except Exception:
-                        pass
-            else:
-                # span 丢失：重建整个视图
-                try:
-                    self.rebuild_annotation_view_from_data()
                 except Exception:
                     pass
-            return
-
-        if op == "set_source":
-            idx = rec.get("idx")
-            old_item = rec.get("old_item")
-            if idx is None or old_item is None:
-                return
+        except Exception:
+            pass
+        if neg_item is not None:
             try:
-                if 0 <= int(idx) < len(self.annotations):
-                    self.annotations[int(idx)] = old_item
-                    sp = self._find_span_by_idx(int(idx))
-                    if sp is not None:
-                        try:
-                            src = str(old_item[3]) if len(old_item) >= 4 else "manual"
-                            sp._apply_visual_style(src)
-                        except Exception:
-                            pass
+                lab = str(item[2])
+                neg_id = int(neg_item[2])
+                self.neg_manager.remove(lab, neg_id)
+            except Exception:
+                pass
+
+    def _undo_edit_interval(self, rec):
+        """撤销一次几何编辑：回滚位置、文本、样式和高亮。"""
+        idx = rec.get("idx")
+        old_item = rec.get("old_item")
+        if idx is None or old_item is None:
+            return
+        try:
+            idx = int(idx)
+        except Exception:
+            return
+        try:
+            if 0 <= idx < len(self.annotations):
+                self.annotations[idx] = old_item
+        except Exception:
+            pass
+
+        sp = None
+        try:
+            sp = self._find_span_by_idx(idx)
+        except Exception:
+            sp = None
+
+        if sp is None:
+            # span 丢失则重建整个视图
+            try:
+                self.rebuild_annotation_view_from_data()
             except Exception:
                 pass
             return
+
+        try:
+            s0, s1 = float(old_item[0]), float(old_item[1])
+            lab = str(old_item[2])
+            src0 = str(old_item[3]) if len(old_item) >= 4 else "manual"
+
+            sp.setPos([s0, sp.y_base], update=False)
+            sp.setSize([s1 - s0, sp.h_fix], update=False)
+            sp.text = lab
+            try:
+                sp._update_label_html()
+            except Exception:
+                pass
+            try:
+                sp._apply_visual_style(src0)
+            except Exception:
+                pass
+
+            # STFT 高亮同步
+            try:
+                reg = getattr(self, "_span2spec", {}).get(sp)
+                if reg is not None:
+                    reg.setRegion([s0, s1])
+            except Exception:
+                pass
+
+            try:
+                sp._on_changed()
+            except Exception:
+                pass
+        except Exception:
+            # 兜底：回滚失败则重建视图
+            try:
+                self.rebuild_annotation_view_from_data()
+            except Exception:
+                pass
+
+    def _undo_set_source(self, rec):
+        """撤销 source 变更：恢复旧 source 并重绘视觉样式。"""
+        idx = rec.get("idx")
+        old_item = rec.get("old_item")
+        if idx is None or old_item is None:
+            return
+        try:
+            if 0 <= int(idx) < len(self.annotations):
+                self.annotations[int(idx)] = old_item
+                sp = self._find_span_by_idx(int(idx))
+                if sp is not None:
+                    try:
+                        src = str(old_item[3]) if len(old_item) >= 4 else "manual"
+                        sp._apply_visual_style(src)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
     def accept_annotation(self, target, accepted_source: str = "auto_accepted"):
         """将机器标注标记为「已认可」，默认 source=auto_accepted，支持撤销。"""
@@ -1926,56 +1937,12 @@ class AudioViewer(QMainWindow):
             if not text:
                 return
 
-        # —— 分轨策略...
-        lane = self._pick_lane(start, end)
-        y0 = lane * (self.LANE_H + self.LANE_GAP)
+        # —— 渲染标注可视化 + 频谱高亮 ——
+        span = self._render_annotation_span(start, end, text, source)
+        if span is None:
+            return
 
-        # 根据标签拿颜色 (用于条的填充、边框、STFT 高光)
-        color = self.get_annotation_color(text)
-        try:
-            pen = pg.mkPen(color, width=1)
-            span_brush_color = QColor(color)
-            span_brush_color.setAlpha(80)
-            brush = pg.mkBrush(span_brush_color)
-        except Exception:
-            pen = pg.mkPen(255, 255, 255, 255, width=1)
-            brush = pg.mkBrush(255, 255, 255, 255)
-
-        # === 根据 source 决定标签文字颜色 ===
-        if source == "manual":
-            label_color = None  # 用 BoxSpan 默认黑字
-        else:
-            label_color = QColor(255, 0, 0)  # 机器标注 → 红字
-
-        # —— 画彩色"盒条"
-        span = BoxSpan(start, end, y0, self.LANE_H, text, self, label_color=label_color)
-        span.setPen(pen)
-        try:
-            span.setBrush(brush)
-        except Exception:
-            pass
-        self.annot_plot.addItem(span)
-        self._spans.append(span)
-        span.lane = lane
-
-        # —— 频谱高光：与标签同色
-        try:
-            spec_color = QColor(color)
-            spec_color.setAlpha(50)
-            spec_brush = pg.mkBrush(spec_color)
-        except Exception:
-            spec_brush = pg.mkBrush(255, 0, 0, 50)
-
-        spec = pg.LinearRegionItem([start, end], brush=spec_brush)
-        spec.setMovable(False)
-        spec.setZValue(1)
-        # 允许 STFT 高光随编辑扩展到音频全时长 (不要把 bounds 锁死在初始区间)
-        _xmax = float(getattr(self, "duration", 0.0) or max(end, start, 0.0))
-        spec.setBounds([0.0, _xmax])
-        self.spec_stft_plot.addItem(spec)
-        self._span2spec[span] = spec
-
-        # —— 导出缓存：4 元组 (start, end, text, source)
+        # —— 注册到 annotations 数据 ——
         if not hasattr(self, "annotations"):
             self.annotations = []
         self.annotations.append((float(start), float(end), str(text), str(source)))
