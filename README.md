@@ -15,21 +15,21 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 
 | Nr. | Code metadata description | Please fill in |
 |-----|---------------------------|----------------|
-| C1  | Current code version      | v1.7.0         |
-| C2  | Permanent link to code / repository used for this code version | https://github.com/<user>/RespAnno |
+| C1  | Current code version      | v1.6.6         |
+| C2  | Permanent link to code / repository used for this code version | https://github.com/chaoyuepan/RespAnno |
 | C3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
 | C4  | Legal Code License        | MIT            |
 | C5  | Code versioning system used | git            |
 | C6  | Software code languages, tools, and services used | Python, NumPy, SciPy, librosa, scikit-learn, LightGBM |
 | C7  | Compilation requirements, operating environments & dependencies | see [§ Dependencies](#dependencies) |
 | C8  | Link to developer documentation / manual | see [§ Usage](#usage) |
-| C9  | Support email for questions | (contact corresponding author) |
+| C9  | Support email for questions | chaoyuepan@example.com |
 
 ## Software Metadata
 
 | Nr. | Software metadata description | Please fill in |
 |-----|------------------------------|----------------|
-| S1  | Current software version     | v1.7.0         |
+| S1  | Current software version     | v1.6.6         |
 | S2  | Permanent link to executables of this version | (via PyInstaller, see [§ Installation](#installation)) |
 | S3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
 | S4  | Legal Software License       | MIT            |
@@ -84,7 +84,7 @@ and delegates to the back-end modules.
 ```
 SoftwareX/
 ├── 1.6.6.py                       # PyQt5 GUI application (main entry)
-├── respanno/                       # Computational back-end (~5265 lines)
+├── respanno/                       # Computational back-end (~5500 lines)
 │   ├── main.py                     # CLI launcher
 │   ├── labels/
 │   │   ├── annotation_io.py        # CSV / TXT / JSON read & write
@@ -96,6 +96,7 @@ SoftwareX/
 │   │   ├── features.py             # 56 short-time features
 │   │   └── fft.py                  # FFT magnitude computation
 │   ├── ml/
+│   │   ├── service.py              # ML pipeline dispatcher (train/apply routing)
 │   │   ├── hsmm.py                 # HSMM Viterbi decoder & duration priors
 │   │   ├── phase_model.py          # Inspiration/Expiration/Pause training
 │   │   ├── classifier.py           # Binary LightGBM event classifier
@@ -107,7 +108,7 @@ SoftwareX/
 │       ├── views/                  # AnnotViewBox, WaveViewBox
 │       └── widgets/                # ColorBarWidget, ClickableSlider, ColorCheckDelegate
 ├── legacy/1.6.6.py                 # Frozen original monolith
-├── tests/                          # 229 unit & integration tests
+├── tests/                          # 427 unit & integration tests
 ├── docs/                           # Architecture & testing documentation
 ├── demo_data/                      # Example WAV + _events annotation files
 └── screenshots/                    # UI screenshots
@@ -194,7 +195,7 @@ WAV file
 ### From Source
 
 ```bash
-git clone https://github.com/<user>/RespAnno.git
+git clone https://github.com/chaoyuepan/RespAnno.git
 cd RespAnno
 
 # Using conda (recommended)
@@ -322,11 +323,11 @@ monolith has been progressively refactored into a maintainable package:
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| 1     | Done   | 5 pure modules extracted (annotation_io, preprocessing, spectrogram, features, hsmm) |
-| 2     | Done   | 9 GUI widget classes extracted to `respanno/gui/` |
-| 3     | Done   | ML training/inference logic extracted (label_taxonomy, phase_model, classifier) |
-| 4     | Done   | FFT, frame labels, and events auto-import extracted |
-| 5     | Done   | Final integration & comprehensive test suite (427 tests) |
+| 1     | Done   | Annotation IO + audio preprocessing modules extracted |
+| 2     | Done   | DSP modules extracted (spectrogram, features, FFT) + HSMM utilities |
+| 3     | Done   | ML pipeline extracted (label_taxonomy, phase_model, classifier, frame_labels) |
+| 4     | Done   | 9 GUI widget classes extracted to `respanno/gui/` subpackages |
+| 5     | Done   | MLService dispatcher extracted + SettingsDialog decoupled + 427 tests |
 
 ---
 

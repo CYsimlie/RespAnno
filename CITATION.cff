@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use RespAnno in your research, please cite it as below."
+title: "RespAnno: An Interactive Respiratory Sound Annotation Tool with ML-Assisted Labeling"
+version: 1.6.6
+date-released: 2026-06-03
+type: software
+authors:
+  - family-names: Pan
+    given-names: Chao Yue
+    email: chaoyuepan@example.com
+    orcid: ''
+repository-code: 'https://github.com/chaoyuepan/RespAnno'
+url: 'https://github.com/chaoyuepan/RespAnno'
+abstract: >-
+  RespAnno is an open-source, interactive annotation tool for respiratory
+  sound analysis. It provides a complete pipeline from audio preprocessing
+  and time-frequency visualization through manual annotation and
+  machine-learning-assisted labeling, targeting researchers and clinicians
+  working with auscultation recordings.
+keywords:
+  - respiratory sounds
+  - audio annotation
+  - machine learning
+  - HSMM
+  - auscultation
+  - LightGBM
+  - spectrogram
+license: MIT

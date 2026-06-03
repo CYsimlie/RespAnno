@@ -1,6 +1,44 @@
 # Changelog
 
-## [1.7.0] — 2026-05-13 (模块抽离完成)
+## [1.6.6] — 2026-06-03
+
+### Added
+- `respanno/ml/service.py` — ML pipeline dispatcher (train/apply routing)
+- Lazy sounddevice import for headless CI compatibility
+- CITATION.cff — academic citation metadata
+- CONTRIBUTING.md — contribution guidelines
+- CODE_OF_CONDUCT.md — community standards
+
+### Changed
+- Default STFT parameters: n_fft 512→256, hop_length 256→64
+- All Chinese comments rewritten to professional style
+- Cleaned 13 dead sklearn/lightgbm imports from main file
+- Main file (1.6.6.py) now contains only AudioViewer class (~2443 lines)
+- Updated architecture tree and test counts in README
+
+### Fixed
+- Duplicate `import os, sys` cleaned up
+- Version number consistency across README / pyproject.toml / __init__.py
+
+---
+
+## [1.6.6-beta] — 2026-05-28
+
+### Added
+- `respanno/ml/classifier.py` — Binary LightGBM event classifier (380 lines)
+- `respanno/ml/phase_model.py` — Phase model training & application (430 lines)
+- `respanno/ml/label_taxonomy.py` — Label-to-pipeline routing (101 lines)
+- `respanno/ml/frame_labels.py` — Frame-level training label builder
+- 427 tests across 22 test modules (all pass)
+
+### Changed
+- MLService shrunk from ~995 lines to 251 lines (74% reduction)
+- 1.6.6.py shrunk from 3711 to ~2700 lines
+- 8 import bugs fixed in extracted modules
+
+---
+
+## [1.6.6-alpha] — 2026-05-13 (模块抽离完成)
 
 ### Added
 - `respanno/labels/annotation_io.py` — 标签 IO 纯函数 (10 functions)
