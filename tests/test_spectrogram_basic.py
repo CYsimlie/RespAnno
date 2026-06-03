@@ -164,3 +164,69 @@ class TestDefaultConfig:
         assert DEFAULT_STFT_CONFIG['hop_length'] == 256
         assert DEFAULT_STFT_CONFIG['f_max'] == 2000
         assert DEFAULT_STFT_CONFIG['cmap'] == 'Heatmap'
+
+class TestGoldenValues:
+    """物理真值验证：用已知信号验证 STFT 输出在正确的时间/频率位置。"""
+
+    def test_sine_sweep_tf_localization(self):
+        """500 Hz 纯音前半段 + 1000 Hz 纯音后半段：验证 STFT 能量峰值在正确位置切换。"""
+        import numpy as np
+        from respanno.dsp.spectrogram import compute_stft_db
+
+        sr = 4000
+        duration = 2.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+
+        # 前半段 500 Hz，后半段 1000 Hz
+        mid = len(t) // 2
+        sig = np.zeros_like(t)
+        sig[:mid] = np.sin(2 * np.pi * 500 * t[:mid])
+        sig[mid:] = np.sin(2 * np.pi * 1000 * t[mid:])
+
+        S_db, freqs = compute_stft_db(
+            sig.astype(np.float32), sr,
+            n_fft=256, hop_length=64, f_max=2000
+        )
+
+        # 找到 500 Hz 和 1000 Hz 最近的 bin
+        i500 = int(np.argmin(np.abs(freqs - 500)))
+        i1000 = int(np.argmin(np.abs(freqs - 1000)))
+
+        n_frames = S_db.shape[1]
+        half_frames = n_frames // 2
+
+        # Golden value: 前半段时间帧在 500 Hz 处能量 > 1000 Hz 处
+        energy_500_first = np.mean(S_db[i500, :half_frames])
+        energy_1000_first = np.mean(S_db[i1000, :half_frames])
+        assert energy_500_first > energy_1000_first, (
+            f'前半段：500 Hz 能量({energy_500_first:.1f})应 > 1000 Hz({energy_1000_first:.1f})'
+        )
+
+        # Golden value: 后半段时间帧在 1000 Hz 处能量 > 500 Hz 处
+        energy_500_second = np.mean(S_db[i500, half_frames:])
+        energy_1000_second = np.mean(S_db[i1000, half_frames:])
+        assert energy_1000_second > energy_500_second, (
+            f'后半段：1000 Hz 能量({energy_1000_second:.1f})应 > 500 Hz({energy_500_second:.1f})'
+        )
+
+    def test_single_tone_consistent_peak(self):
+        """400 Hz 纯音：所有 STFT 时间帧的峰值频率应在 400 Hz 附近（±50 Hz）。"""
+        import numpy as np
+        from respanno.dsp.spectrogram import compute_stft_db
+
+        sr = 4000
+        duration = 1.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        sig = np.sin(2 * np.pi * 400 * t).astype(np.float32)
+
+        S_db, freqs = compute_stft_db(sig, sr, n_fft=256, hop_length=64, f_max=2000)
+
+        # 每帧找峰值频率
+        peak_indices = np.argmax(S_db, axis=0)
+        peak_freqs = freqs[peak_indices]
+
+        # Golden value: 所有帧的峰值频率应在 400 ± 50 Hz 范围内
+        # （边界帧可能有 minor 偏差，用 ±50 Hz 宽容度）
+        assert np.all((peak_freqs >= 350) & (peak_freqs <= 450)), (
+            f'峰值频率范围：{peak_freqs.min():.0f}～{peak_freqs.max():.0f} Hz（期望 350～450 Hz）'
+        )

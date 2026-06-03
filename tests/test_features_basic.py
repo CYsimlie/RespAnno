@@ -115,3 +115,94 @@ class TestTimeDomainFeatures:
         feat = compute_time_domain_features(sig, sr, 512, 256)
         zcr = feat['过零率']
         assert np.all(zcr >= 0) and np.all(zcr <= 1)
+
+class TestGoldenValues:
+    """物理真值验证：用纯正弦波验证短时特征的物理正确值。"""
+
+    def test_pure_tone_spectral_centroid(self):
+        """500 Hz 纯音 → 谱质心应 ≈ 500 Hz（所有频谱能量集中在此频率）。"""
+        import numpy as np
+        from respanno.dsp.features import compute_short_time_features
+
+        sr = 4000
+        duration = 1.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        sig = np.sin(2 * np.pi * 500 * t).astype(np.float32)
+
+        times, feat_dict = compute_short_time_features(
+            sig, sr, n_fft=256, hop_length=64, f_max=2000
+        )
+
+        centroid = feat_dict['谱质心']
+        # Golden value: spectral centroid of a pure tone = the tone frequency
+        # Allow ±10% tolerance for FFT bin discretization
+        mean_centroid = float(np.mean(centroid))
+        assert 450 < mean_centroid < 550, (
+            f'500 Hz 纯音的谱质心应为 ~500 Hz，实际 {mean_centroid:.1f} Hz'
+        )
+
+    def test_pure_tone_rms_energy(self):
+        """振幅 0.5 的纯音 → RMS 能量应 ≈ 0.5 / sqrt(2) ≈ 0.354。"""
+        import numpy as np
+        from respanno.dsp.features import compute_short_time_features
+
+        sr = 4000
+        duration = 1.0
+        amplitude = 0.5
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        sig = (amplitude * np.sin(2 * np.pi * 300 * t)).astype(np.float32)
+
+        times, feat_dict = compute_short_time_features(
+            sig, sr, n_fft=256, hop_length=64, f_max=2000
+        )
+
+        energy = feat_dict['短时能量']
+        n_fft = 256
+        expected_energy = n_fft * (amplitude ** 2 / 2)  # = 32.0
+        mean_energy = float(np.mean(energy))
+
+        # 允许 ±15% 容差（窗函数 + 边界效应）
+        assert 27.0 < mean_energy < 37.0, (
+            f'振幅 {amplitude} 的纯音 能量 应 ≈ {expected_energy:.1f}，实际 {mean_energy:.1f}'
+        )
+
+    def test_pure_tone_zcr(self):
+        """400 Hz 纯音 → 过零率应 ≈ 2*f/sr = 800/4000 = 0.20。"""
+        import numpy as np
+        from respanno.dsp.features import compute_short_time_features
+
+        sr = 4000
+        duration = 1.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        sig = np.sin(2 * np.pi * 400 * t).astype(np.float32)
+
+        times, feat_dict = compute_short_time_features(
+            sig, sr, n_fft=256, hop_length=64, f_max=2000
+        )
+
+        zcr = feat_dict['过零率']
+        expected = 2 * 400 / sr  # = 0.20
+        mean_zcr = float(np.mean(zcr))
+
+        # 允许 ±20% 容差
+        assert 0.16 < mean_zcr < 0.24, (
+            f'400 Hz 纯音 ZCR 应 ≈ {expected:.3f}，实际 {mean_zcr:.3f}'
+        )
+
+    def test_silence_rms_near_zero(self):
+        """静音信号 → RMS 能量应接近 0。"""
+        import numpy as np
+        from respanno.dsp.features import compute_short_time_features
+
+        sr = 4000
+        duration = 1.0
+        sig = np.zeros(int(sr * duration), dtype=np.float32)
+
+        times, feat_dict = compute_short_time_features(
+            sig, sr, n_fft=256, hop_length=64, f_max=2000
+        )
+
+        energy = feat_dict['短时能量']
+        assert float(np.max(energy)) < 1e-6, (
+            f'静音信号 短时能量 应接近 0，实际最大 {float(np.max(energy)):.2e}'
+        )

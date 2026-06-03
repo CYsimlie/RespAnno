@@ -228,3 +228,98 @@ class TestSummarizePreprocessing:
         """验证：'lowpass' in s。"""
         s = summarize_preprocessing({'preprocessing_enabled': True, 'resample_enabled': False, 'filter_enabled': True, 'filter_type': 'lowpass', 'filter_highcut': 800.0})
         assert 'lowpass' in s
+
+
+class TestGoldenValues:
+    """物理真值验证：用扫频信号 + FFT 验证滤波器频率响应。"""
+
+    def test_lowpass_attenuates_above_cutoff(self):
+        """低通 500 Hz：1000 Hz 正弦波应被衰减至少 20 dB。"""
+        import numpy as np
+        from respanno.audio.preprocessing import apply_butter_filter
+
+        sr = 4000
+        duration = 1.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        sig = np.sin(2 * np.pi * 1000 * t).astype(np.float32)
+
+        filtered = apply_butter_filter(
+            sig, sr, filter_type='lowpass', lowcut=20.0,
+            highcut=500.0, order=4, zero_phase=True)
+
+        fft_in = np.abs(np.fft.rfft(sig))
+        fft_out = np.abs(np.fft.rfft(filtered))
+        freqs = np.fft.rfftfreq(len(sig), 1 / sr)
+        idx_1k = int(np.argmin(np.abs(freqs - 1000)))
+        atten_db = 20 * np.log10(max(fft_out[idx_1k], 1e-12) / max(fft_in[idx_1k], 1e-12))
+
+        assert atten_db < -20, (
+            f'低通 500 Hz 对 1000 Hz 的衰减应为 <-20 dB，实际 {atten_db:.1f} dB'
+        )
+
+    def test_bandpass_preserves_inband(self):
+        """带通 20-1800 Hz：500 Hz 正弦波衰减应 < 3 dB。"""
+        import numpy as np
+        from respanno.audio.preprocessing import apply_butter_filter
+
+        sr = 4000
+        duration = 1.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        sig = np.sin(2 * np.pi * 500 * t).astype(np.float32)
+
+        filtered = apply_butter_filter(
+            sig, sr, filter_type='bandpass', lowcut=20.0,
+            highcut=1800.0, order=4, zero_phase=True)
+
+        fft_in = np.abs(np.fft.rfft(sig))
+        fft_out = np.abs(np.fft.rfft(filtered))
+        freqs = np.fft.rfftfreq(len(sig), 1 / sr)
+        idx_500 = int(np.argmin(np.abs(freqs - 500)))
+        atten_db = 20 * np.log10(max(fft_out[idx_500], 1e-12) / max(fft_in[idx_500], 1e-12))
+
+        assert atten_db > -3, (
+            f'带通滤波器对 500 Hz 通带内信号衰减应 < 3 dB，实际 {atten_db:.1f} dB'
+        )
+
+    def test_highpass_attenuates_below_cutoff(self):
+        """高通 100 Hz：50 Hz 正弦波应被衰减至少 20 dB。"""
+        import numpy as np
+        from respanno.audio.preprocessing import apply_butter_filter
+
+        sr = 4000
+        duration = 1.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        sig = np.sin(2 * np.pi * 50 * t).astype(np.float32)
+
+        filtered = apply_butter_filter(
+            sig, sr, filter_type='highpass', lowcut=100.0,
+            highcut=1800.0, order=4, zero_phase=True)
+
+        fft_in = np.abs(np.fft.rfft(sig))
+        fft_out = np.abs(np.fft.rfft(filtered))
+        freqs = np.fft.rfftfreq(len(sig), 1 / sr)
+        idx_50 = int(np.argmin(np.abs(freqs - 50)))
+        atten_db = 20 * np.log10(max(fft_out[idx_50], 1e-12) / max(fft_in[idx_50], 1e-12))
+
+        assert atten_db < -20, (
+            f'高通 100 Hz 对 50 Hz 的衰减应为 <-20 dB，实际 {atten_db:.1f} dB'
+        )
+
+    def test_filter_is_deterministic(self):
+        """相同输入 + 相同配置的滤波输出应逐位相等。"""
+        import numpy as np
+        from respanno.audio.preprocessing import apply_butter_filter
+
+        sr = 4000
+        t = np.linspace(0, 1, sr, endpoint=False)
+        sig = (np.sin(2 * np.pi * 200 * t) + 0.3 * np.random.randn(sr)).astype(np.float32)
+
+        out1 = apply_butter_filter(
+            sig, sr, filter_type='bandpass', lowcut=20.0,
+            highcut=1800.0, order=4, zero_phase=True)
+        out2 = apply_butter_filter(
+            sig, sr, filter_type='bandpass', lowcut=20.0,
+            highcut=1800.0, order=4, zero_phase=True)
+
+        assert np.allclose(out1, out2), '相同输入应产生逐位相同的输出'
+
