@@ -16,8 +16,8 @@ except ImportError:
 
 
 DEFAULT_STFT_CONFIG = {
-    "n_fft": 512,
-    "hop_length": 256,
+    "n_fft": 256,
+    "hop_length": 64,
     "f_max": 2000,
     "cmap": "Heatmap",
     "max_time_bins": 2500,
@@ -32,8 +32,8 @@ DEFAULT_STFT_CONFIG = {
 def compute_stft_db(
     audio: np.ndarray,
     sr: int,
-    n_fft: int = 512,
-    hop_length: int = 256,
+    n_fft: int = 256,
+    hop_length: int = 64,
     f_max: float = 2000.0,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the STFT dB spectrogram, cropped to frequencies <= f_max.
@@ -201,8 +201,8 @@ def compute_spectrogram_display(
     - f_max_eff (float)
     """
     cfg = {**DEFAULT_STFT_CONFIG, **(config or {})}
-    n_fft = int(cfg.get("n_fft", 512))
-    hop_length = int(cfg.get("hop_length", 256))
+    n_fft = int(cfg.get("n_fft", 256))
+    hop_length = int(cfg.get("hop_length", 64))
     f_max = float(cfg.get("f_max", 2000))
     cmap = str(cfg.get("cmap", "Heatmap"))
     max_tb = int(cfg.get("max_time_bins", 2500))
@@ -236,7 +236,7 @@ def compute_spectrogram_display(
 def compute_stft_frame_times(audio_length: int, sr: int, hop_length: int) -> np.ndarray:
     """Return the time-stamps of STFT frame centres (seconds)."""
     # Same shape as librosa.stft(..., center=True, pad_mode='reflect')
-    n_fft = 512  # dummy — frame count is hop-dependent with center=True
+    n_fft = 256  # dummy — frame count is hop-dependent with center=True
     D = librosa.stft(np.zeros(audio_length), n_fft=n_fft, hop_length=hop_length,
                     center=True, pad_mode="reflect")
     T = D.shape[1]

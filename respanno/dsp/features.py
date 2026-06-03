@@ -485,8 +485,8 @@ def compute_spectral_features(
 def compute_short_time_features(
     audio: np.ndarray,
     sr: int,
-    n_fft: int = 512,
-    hop_length: int = 256,
+    n_fft: int = 256,
+    hop_length: int = 64,
     f_max: float = 2000.0,
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
     """Compute all short-time features (time + spectral + COR).

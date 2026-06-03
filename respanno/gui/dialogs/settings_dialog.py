@@ -20,7 +20,7 @@ from respanno.gui.widgets.color_check_delegate import ColorCheckDelegate
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None, n_fft=512, hop_length=256, f_max=2000,
+    def __init__(self, parent=None, n_fft=256, hop_length=64, f_max=2000,
                  wave_y_range=None, audio_data=None, selected_features=None,
                  stft_last_spec=None, stft_cmap="Heatmap", stft_levels=(None, None),
                  feature_color_map=None,
