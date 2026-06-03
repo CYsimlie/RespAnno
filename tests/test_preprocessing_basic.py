@@ -2,69 +2,60 @@
 
 All tests exercise the extracted module directly (no QApplication needed).
 """
-
 import numpy as np
 import pytest
 import scipy.io.wavfile as wavfile
-
-from respanno.audio.preprocessing import (
-    DEFAULT_PREPROCESSING_CONFIG,
-    validate_preprocessing_config,
-    compute_target_sr,
-    apply_butter_filter,
-    apply_preprocessing,
-    preprocess_audio_file,
-    summarize_preprocessing,
-)
-
+from respanno.audio.preprocessing import DEFAULT_PREPROCESSING_CONFIG, validate_preprocessing_config, compute_target_sr, apply_butter_filter, apply_preprocessing, preprocess_audio_file, summarize_preprocessing
 
 class TestValidateConfig:
+
     def test_defaults(self):
+        """验证默认参数值符合预期。"""
         cfg = validate_preprocessing_config({})
-        assert cfg["preprocessing_enabled"] is True
-        assert cfg["resample_enabled"] is True
-        assert cfg["resample_target_sr"] == 4000
-        assert cfg["filter_enabled"] is False
-        assert cfg["filter_type"] == "bandpass"
-        assert cfg["filter_lowcut"] == 20.0
-        assert cfg["filter_highcut"] == 1800.0
-        assert cfg["filter_order"] == 4
-        assert cfg["filter_zero_phase"] is True
+        assert cfg['preprocessing_enabled'] is True
+        assert cfg['resample_enabled'] is True
+        assert cfg['resample_target_sr'] == 4000
+        assert cfg['filter_enabled'] is False
+        assert cfg['filter_type'] == 'bandpass'
+        assert cfg['filter_lowcut'] == 20.0
+        assert cfg['filter_highcut'] == 1800.0
+        assert cfg['filter_order'] == 4
+        assert cfg['filter_zero_phase'] is True
 
     def test_invalid_filter_type_clamped(self):
-        cfg = validate_preprocessing_config({"filter_type": "unknown"})
-        assert cfg["filter_type"] == "bandpass"
+        """验证非法参数值被 clamp 到合法范围。"""
+        cfg = validate_preprocessing_config({'filter_type': 'unknown'})
+        assert cfg['filter_type'] == 'bandpass'
 
     def test_order_clamped(self):
-        cfg = validate_preprocessing_config({"filter_order": 50})
-        assert cfg["filter_order"] == 12
-        # order=0 is falsy → `0 or 4` → 4 (matches legacy behaviour)
-        cfg = validate_preprocessing_config({"filter_order": 0})
-        assert cfg["filter_order"] == 4
+        """验证非法参数值被 clamp 到合法范围。"""
+        cfg = validate_preprocessing_config({'filter_order': 50})
+        assert cfg['filter_order'] == 12
+        cfg = validate_preprocessing_config({'filter_order': 0})
+        assert cfg['filter_order'] == 4
 
     def test_None_values_filled(self):
-        cfg = validate_preprocessing_config({
-            "filter_type": None,
-            "filter_lowcut": None,
-            "filter_highcut": None,
-        })
-        assert cfg["filter_type"] == "bandpass"
-        assert cfg["filter_lowcut"] == 20.0
-        assert cfg["filter_highcut"] == 1800.0
-
+        """验证空输入或 None 输入时的行为。"""
+        cfg = validate_preprocessing_config({'filter_type': None, 'filter_lowcut': None, 'filter_highcut': None})
+        assert cfg['filter_type'] == 'bandpass'
+        assert cfg['filter_lowcut'] == 20.0
+        assert cfg['filter_highcut'] == 1800.0
 
 class TestComputeTargetSR:
+
     def test_enabled_returns_4000(self):
-        cfg = {"preprocessing_enabled": True, "resample_enabled": True, "resample_target_sr": 4000}
+        """验证：compute_target_sr(cfg) == 4000。"""
+        cfg = {'preprocessing_enabled': True, 'resample_enabled': True, 'resample_target_sr': 4000}
         assert compute_target_sr(cfg) == 4000
 
     def test_disabled_returns_none(self):
-        assert compute_target_sr({"preprocessing_enabled": False, "resample_enabled": True, "resample_target_sr": 4000}) is None
-        assert compute_target_sr({"preprocessing_enabled": True, "resample_enabled": False, "resample_target_sr": 4000}) is None
+        """验证空输入或 None 输入时的行为。"""
+        assert compute_target_sr({'preprocessing_enabled': False, 'resample_enabled': True, 'resample_target_sr': 4000}) is None
+        assert compute_target_sr({'preprocessing_enabled': True, 'resample_enabled': False, 'resample_target_sr': 4000}) is None
 
     def test_zero_target_returns_none(self):
-        assert compute_target_sr({"preprocessing_enabled": True, "resample_enabled": True, "resample_target_sr": 0}) is None
-
+        """验证空输入或 None 输入时的行为。"""
+        assert compute_target_sr({'preprocessing_enabled': True, 'resample_enabled': True, 'resample_target_sr': 0}) is None
 
 class TestApplyButterFilter:
     """Cover bandpass / lowpass / highpass / bandstop + edge cases."""
@@ -74,115 +65,122 @@ class TestApplyButterFilter:
         sr = 4000
         t = np.linspace(0, 1, sr, endpoint=False)
         sig = 0.5 * np.sin(2 * np.pi * 100 * t) + 0.3 * np.sin(2 * np.pi * 800 * t)
-        return sig.astype(np.float32), sr
+        return (sig.astype(np.float32), sr)
 
     def test_bandpass_no_error(self, sig_4000):
-        sig, sr = sig_4000
-        y = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=200, highcut=500)
+        """验证：y.shape == sig.shape。"""
+        (sig, sr) = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type='bandpass', lowcut=200, highcut=500)
         assert y.shape == sig.shape
         assert np.all(np.isfinite(y))
 
     def test_lowpass_no_error(self, sig_4000):
-        sig, sr = sig_4000
-        y = apply_butter_filter(sig, sr, filter_type="lowpass", highcut=1500)
+        """验证：y.shape == sig.shape。"""
+        (sig, sr) = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type='lowpass', highcut=1500)
         assert y.shape == sig.shape
         assert np.all(np.isfinite(y))
 
     def test_highpass_no_error(self, sig_4000):
-        sig, sr = sig_4000
-        y = apply_butter_filter(sig, sr, filter_type="highpass", lowcut=300)
+        """验证：y.shape == sig.shape。"""
+        (sig, sr) = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type='highpass', lowcut=300)
         assert y.shape == sig.shape
         assert np.all(np.isfinite(y))
 
     def test_bandstop_no_error(self, sig_4000):
-        sig, sr = sig_4000
-        y = apply_butter_filter(sig, sr, filter_type="bandstop", lowcut=200, highcut=500)
+        """验证：y.shape == sig.shape。"""
+        (sig, sr) = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type='bandstop', lowcut=200, highcut=500)
         assert y.shape == sig.shape
         assert np.all(np.isfinite(y))
 
     def test_lowpass_attenuates_high(self, sig_4000):
-        sig, sr = sig_4000
-        y = apply_butter_filter(sig, sr, filter_type="lowpass", highcut=500, order=4)
-        # Energy above 700 Hz should be reduced
+        """验证：ratio < 1.5。"""
+        (sig, sr) = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type='lowpass', highcut=500, order=4)
         from scipy.fft import rfft
         spec_orig = np.abs(rfft(sig))
         spec_y = np.abs(rfft(y))
         freqs = np.fft.rfftfreq(len(y), d=1 / sr)
         ratio = np.sum(spec_y[freqs > 700]) / (np.sum(spec_orig[freqs > 700]) + 1e-12)
-        assert ratio < 1.5  # should not amplify
+        assert ratio < 1.5
 
     def test_highcut_exceeds_nyquist_clamped(self, sig_4000):
-        sig, sr = sig_4000
-        # highcut far beyond Nyquist (2000 Hz) → internally clipped
-        y = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=200, highcut=5000)
+        """验证非法参数值被 clamp 到合法范围。"""
+        (sig, sr) = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type='bandpass', lowcut=200, highcut=5000)
         assert y.shape == sig.shape
         assert np.all(np.isfinite(y))
 
     def test_bandpass_invalid_range_returns_original(self, sig_4000):
-        sig, sr = sig_4000
-        y = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=500, highcut=100)
-        # high <= low → returned unchanged
+        """验证：np.array_equal(y, sig)。"""
+        (sig, sr) = sig_4000
+        y = apply_butter_filter(sig, sr, filter_type='bandpass', lowcut=500, highcut=100)
         assert np.array_equal(y, sig)
 
     def test_short_signal(self):
+        """验证：y.shape == sig.shape。"""
         sig = np.array([0.1, -0.2, 0.05], dtype=np.float32)
-        y = apply_butter_filter(sig, 4000, filter_type="bandpass")
+        y = apply_butter_filter(sig, 4000, filter_type='bandpass')
         assert y.shape == sig.shape
         assert np.all(np.isfinite(y))
 
     def test_zero_phase_vs_causal(self):
+        """验证：np.all(np.isfinite(y_zp))。"""
         sr = 4000
         rng = np.random.default_rng(42)
         sig = rng.normal(0, 1, sr).astype(np.float32)
-        y_zp = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=200, highcut=500, zero_phase=True)
-        y_causal = apply_butter_filter(sig, sr, filter_type="bandpass", lowcut=200, highcut=500, zero_phase=False)
+        y_zp = apply_butter_filter(sig, sr, filter_type='bandpass', lowcut=200, highcut=500, zero_phase=True)
+        y_causal = apply_butter_filter(sig, sr, filter_type='bandpass', lowcut=200, highcut=500, zero_phase=False)
         assert np.all(np.isfinite(y_zp))
         assert np.all(np.isfinite(y_causal))
 
-
 class TestApplyPreprocessing:
+
     @pytest.fixture
     def sig_4000(self):
         sr = 4000
         t = np.linspace(0, 1, sr, endpoint=False)
         sig = 0.5 * np.sin(2 * np.pi * 100 * t).astype(np.float32)
-        return sig, sr
+        return (sig, sr)
 
     def test_filter_disabled_passthrough(self, sig_4000):
-        sig, sr = sig_4000
-        cfg = {"preprocessing_enabled": True, "filter_enabled": False}
-        y, meta = apply_preprocessing(sig, sr, config=cfg)
+        """验证：np.array_equal(y, sig)。"""
+        (sig, sr) = sig_4000
+        cfg = {'preprocessing_enabled': True, 'filter_enabled': False}
+        (y, meta) = apply_preprocessing(sig, sr, config=cfg)
         assert np.array_equal(y, sig)
-        assert meta["filter_applied"] is False
+        assert meta['filter_applied'] is False
 
     def test_preprocessing_disabled_passthrough(self, sig_4000):
-        sig, sr = sig_4000
-        cfg = {"preprocessing_enabled": False, "filter_enabled": True}
-        y, meta = apply_preprocessing(sig, sr, config=cfg)
+        """验证：np.array_equal(y, sig)。"""
+        (sig, sr) = sig_4000
+        cfg = {'preprocessing_enabled': False, 'filter_enabled': True}
+        (y, meta) = apply_preprocessing(sig, sr, config=cfg)
         assert np.array_equal(y, sig)
 
     def test_metadata_complete(self, sig_4000):
-        sig, sr = sig_4000
-        y, meta = apply_preprocessing(sig, sr)
-        for key in ("input_sr", "output_sr", "filter_enabled", "filter_type",
-                     "filter_lowcut", "filter_highcut", "filter_order", "filter_zero_phase"):
-            assert key in meta, f"Missing metadata key: {key}"
-
+        """验证：key in meta。"""
+        (sig, sr) = sig_4000
+        (y, meta) = apply_preprocessing(sig, sr)
+        for key in ('input_sr', 'output_sr', 'filter_enabled', 'filter_type', 'filter_lowcut', 'filter_highcut', 'filter_order', 'filter_zero_phase'):
+            assert key in meta, f'Missing metadata key: {key}'
 
 class TestPreprocessAudioFile:
+
     def test_load_resample_44100_to_4000(self, tmp_path):
         """Synthetic 44100 Hz WAV → resample to 4000 Hz."""
         sr_orig = 44100
         t = np.linspace(0, 1, sr_orig, endpoint=False)
         sig = 0.5 * np.sin(2 * np.pi * 100 * t).astype(np.float32)
         sig_i16 = (sig / np.max(np.abs(sig)) * 32767).astype(np.int16)
-        p = tmp_path / "test.wav"
+        p = tmp_path / 'test.wav'
         wavfile.write(str(p), sr_orig, sig_i16)
-
-        audio, sr, meta = preprocess_audio_file(str(p))
+        (audio, sr, meta) = preprocess_audio_file(str(p))
         assert sr == 4000
-        assert meta["original_sr"] == 44100
-        assert meta["processed_sr"] == 4000
+        assert meta['original_sr'] == 44100
+        assert meta['processed_sr'] == 4000
         assert audio.shape[0] == 4000
 
     def test_load_no_resample(self, tmp_path):
@@ -191,46 +189,42 @@ class TestPreprocessAudioFile:
         t = np.linspace(0, 0.5, int(sr_orig * 0.5), endpoint=False)
         sig = 0.5 * np.sin(2 * np.pi * 300 * t).astype(np.float32)
         sig_i16 = (sig / np.max(np.abs(sig)) * 32767).astype(np.int16)
-        p = tmp_path / "test.wav"
+        p = tmp_path / 'test.wav'
         wavfile.write(str(p), sr_orig, sig_i16)
-
-        cfg = {"preprocessing_enabled": True, "resample_enabled": False}
-        audio, sr, meta = preprocess_audio_file(str(p), config=cfg)
+        cfg = {'preprocessing_enabled': True, 'resample_enabled': False}
+        (audio, sr, meta) = preprocess_audio_file(str(p), config=cfg)
         assert sr == sr_orig
-        assert meta["processed_sr"] == sr_orig
+        assert meta['processed_sr'] == sr_orig
 
     def test_metadata_keys(self, tmp_path):
+        """验证：key in meta。"""
         sr_orig = 16000
         t = np.linspace(0, 0.5, int(sr_orig * 0.5), endpoint=False)
         sig = 0.5 * np.sin(2 * np.pi * 440 * t).astype(np.float32)
         sig_i16 = (sig / np.max(np.abs(sig)) * 32767).astype(np.int16)
-        p = tmp_path / "test.wav"
+        p = tmp_path / 'test.wav'
         wavfile.write(str(p), sr_orig, sig_i16)
-
-        audio, sr, meta = preprocess_audio_file(str(p))
-        for key in ("original_sr", "processed_sr", "preprocessing_enabled",
-                     "resample_enabled", "filter_enabled", "filter_type"):
-            assert key in meta, f"Missing: {key}"
-
+        (audio, sr, meta) = preprocess_audio_file(str(p))
+        for key in ('original_sr', 'processed_sr', 'preprocessing_enabled', 'resample_enabled', 'filter_enabled', 'filter_type'):
+            assert key in meta, f'Missing: {key}'
 
 class TestSummarizePreprocessing:
+
     def test_off(self):
-        assert summarize_preprocessing({"preprocessing_enabled": False}) == "preprocessing off"
+        """验证：summarize_preprocessing({'preprocessing_enabled': False}) == 'preprocessing off'。"""
+        assert summarize_preprocessing({'preprocessing_enabled': False}) == 'preprocessing off'
 
     def test_resample_only(self):
-        s = summarize_preprocessing({"preprocessing_enabled": True, "resample_enabled": True,
-                                      "resample_target_sr": 4000, "filter_enabled": False})
-        assert "resample=4000" in s
+        """验证重采样开关和采样率配置逻辑。"""
+        s = summarize_preprocessing({'preprocessing_enabled': True, 'resample_enabled': True, 'resample_target_sr': 4000, 'filter_enabled': False})
+        assert 'resample=4000' in s
 
     def test_filter_bandpass(self):
-        s = summarize_preprocessing({"preprocessing_enabled": True, "resample_enabled": True,
-                                      "resample_target_sr": 4000, "filter_enabled": True,
-                                      "filter_type": "bandpass", "filter_lowcut": 100.0,
-                                      "filter_highcut": 1800.0})
-        assert "bandpass=" in s
+        """验证：'bandpass=' in s。"""
+        s = summarize_preprocessing({'preprocessing_enabled': True, 'resample_enabled': True, 'resample_target_sr': 4000, 'filter_enabled': True, 'filter_type': 'bandpass', 'filter_lowcut': 100.0, 'filter_highcut': 1800.0})
+        assert 'bandpass=' in s
 
     def test_filter_lowpass(self):
-        s = summarize_preprocessing({"preprocessing_enabled": True, "resample_enabled": False,
-                                      "filter_enabled": True, "filter_type": "lowpass",
-                                      "filter_highcut": 800.0})
-        assert "lowpass" in s
+        """验证：'lowpass' in s。"""
+        s = summarize_preprocessing({'preprocessing_enabled': True, 'resample_enabled': False, 'filter_enabled': True, 'filter_type': 'lowpass', 'filter_highcut': 800.0})
+        assert 'lowpass' in s

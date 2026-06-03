@@ -7,80 +7,50 @@ the ICBHI 2017 Challenge naming and format conventions:
 - Annotation files use tab-separated ``start\\tend\\tlabel`` format
 - Labels use lowercase (wheeze, crackle, inspiration, expiration)
 """
-
 import os
 import tempfile
-
 import pytest
-
 from respanno.labels.annotation_io import read_annotations
-
-# Reference: ICBHI 2017 Challenge label set
-ICBHI_LABELS = {
-    "wheeze", "crackle", "rhonchi", "stridor",
-    "coarse crackle", "fine crackle",
-    "inspiration", "expiration",
-    "normal", "artifact",
-}
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
+ICBHI_LABELS = {'wheeze', 'crackle', 'rhonchi', 'stridor', 'coarse crackle', 'fine crackle', 'inspiration', 'expiration', 'normal', 'artifact'}
 
 def _write(path, content):
-    with open(path, "w", encoding="utf-8") as f:
+    with open(path, 'w', encoding='utf-8') as f:
         f.write(content)
-
-
-# ---------------------------------------------------------------------------
-# ICBHI-style format parsing
-# ---------------------------------------------------------------------------
-
 
 class TestICBHIFormat:
     """ICBHI annotations are tab-separated with 3 columns: start, end, label."""
 
     def test_load_icbhi_tab_format(self):
+        """验证 ICBHI 2017 挑战赛数据集格式兼容性。"""
         with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, "test_events.txt")
-            _write(path, "2.122\t2.879\twheeze\n10.350\t10.807\twheeze\n")
-
+            path = os.path.join(d, 'test_events.txt')
+            _write(path, '2.122\t2.879\twheeze\n10.350\t10.807\twheeze\n')
             rows = read_annotations(path)
             assert len(rows) == 2
-            assert rows[0]["start"] == pytest.approx(2.122)
-            assert rows[0]["end"] == pytest.approx(2.879)
-            assert rows[0]["label"] == "wheeze"
-            assert rows[0]["source"] == "manual"  # default
+            assert rows[0]['start'] == pytest.approx(2.122)
+            assert rows[0]['end'] == pytest.approx(2.879)
+            assert rows[0]['label'] == 'wheeze'
+            assert rows[0]['source'] == 'manual'
 
     def test_load_icbhi_with_all_labels(self):
         """All ICBHI label types should parse without error."""
         with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, "test_events.txt")
+            path = os.path.join(d, 'test_events.txt')
             lines = []
-            for i, lab in enumerate(sorted(ICBHI_LABELS)):
-                lines.append(f"{i*1.0}\t{i*1.0+0.5}\t{lab}")
-            _write(path, "\n".join(lines))
-
+            for (i, lab) in enumerate(sorted(ICBHI_LABELS)):
+                lines.append(f'{i * 1.0}\t{i * 1.0 + 0.5}\t{lab}')
+            _write(path, '\n'.join(lines))
             rows = read_annotations(path)
             assert len(rows) == len(ICBHI_LABELS)
 
     def test_icbhi_mixed_case_labels(self):
         """ICBHI labels are conventionally lowercase — verify case preserved."""
         with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, "test_events.txt")
-            _write(path, "1.0\t2.0\tWheeze\n3.0\t4.0\tCrackle\n")
-
+            path = os.path.join(d, 'test_events.txt')
+            _write(path, '1.0\t2.0\tWheeze\n3.0\t4.0\tCrackle\n')
             rows = read_annotations(path)
-            assert rows[0]["label"] == "Wheeze"
-            assert rows[1]["label"] == "Crackle"
-
-
-# ---------------------------------------------------------------------------
-# ICBHI file naming conventions
-# ---------------------------------------------------------------------------
-
+            assert rows[0]['label'] == 'Wheeze'
+            assert rows[1]['label'] == 'Crackle'
 
 class TestICBHIFileNaming:
     """ICBHI WAV files follow a specific naming pattern."""
@@ -88,40 +58,27 @@ class TestICBHIFileNaming:
     def test_icbhi_filename_pattern(self):
         """Verify the ICBHI naming pattern is recognised."""
         import re
-        # Pattern: NNN_NbN_Xx_sc_Device.wav
-        pattern = r"^\d{3}_\db\d_[A-Z][a-z]_(sc|mc)_\w+\.wav$"
-        examples = [
-            "101_1b1_Pr_sc_Meditron.wav",
-            "102_1b1_Ar_sc_Meditron.wav",
-            "103_2b2_Ar_mc_LittC2SE.wav",
-            "104_1b1_Al_sc_Litt3200.wav",
-        ]
+        pattern = '^\\d{3}_\\db\\d_[A-Z][a-z]_(sc|mc)_\\w+\\.wav$'
+        examples = ['101_1b1_Pr_sc_Meditron.wav', '102_1b1_Ar_sc_Meditron.wav', '103_2b2_Ar_mc_LittC2SE.wav', '104_1b1_Al_sc_Litt3200.wav']
         for name in examples:
             assert re.match(pattern, name), f"'{name}' does not match ICBHI pattern"
 
     def test_events_suffix_convention(self):
         """ICBHI events files are named `<wav_base>_events.txt`."""
-        wav_name = "101_1b1_Pr_sc_Meditron.wav"
+        wav_name = '101_1b1_Pr_sc_Meditron.wav'
         base = os.path.splitext(wav_name)[0]
-        events_name = f"{base}_events.txt"
-        assert events_name == "101_1b1_Pr_sc_Meditron_events.txt"
+        events_name = f'{base}_events.txt'
+        assert events_name == '101_1b1_Pr_sc_Meditron_events.txt'
 
     def test_our_demo_data_matches_icbhi_naming(self):
         """Existing demo_data files follow ICBHI conventions."""
-        demo_dir = os.path.join(
-            os.path.dirname(__file__), "..", "demo_data", "4000Hz"
-        )
+        demo_dir = os.path.join(os.path.dirname(__file__), '..', 'demo_data', '4000Hz')
         if not os.path.isdir(demo_dir):
-            pytest.skip("demo_data/4000Hz directory not found")
-
-        wavs = [f for f in os.listdir(demo_dir) if f.endswith(".wav")]
-        assert len(wavs) >= 4, "should have at least 4 ICBHI-style WAV files"
-
-        # Each WAV should have a potential _events partner pattern
+            pytest.skip('demo_data/4000Hz directory not found')
+        wavs = [f for f in os.listdir(demo_dir) if f.endswith('.wav')]
+        assert len(wavs) >= 4, 'should have at least 4 ICBHI-style WAV files'
         for wav in wavs:
             base = os.path.splitext(wav)[0]
-            # Check if events file exists
-            for ext in (".csv", ".txt", ".json"):
-                events_file = f"{base}_events{ext}"
-                # Just verify the naming pattern, not existence
+            for ext in ('.csv', '.txt', '.json'):
+                events_file = f'{base}_events{ext}'
                 assert events_file.startswith(base)
