@@ -15,7 +15,7 @@ os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = base_path
 import sys
 import os
 import time
-import sounddevice as sd
+# sounddevice imported lazily via _sd() — not available in headless CI
 import librosa
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QFileDialog,
@@ -55,6 +55,19 @@ from respanno.gui.spans.box_span import BoxSpan  # noqa: F401
 from respanno.gui.views.annot_view_box import AnnotViewBox  # noqa: F401
 from respanno.gui.views.wave_view_box import WaveViewBox  # noqa: F401
 from respanno.gui.widgets.clickable_slider import ClickableSlider  # noqa: F401
+
+
+_sd = None
+
+
+def _get_sd():
+    """Lazy import sounddevice — PortAudio may be absent in headless CI."""
+    global _sd
+    if _sd is None:
+        import sounddevice as _sd
+    return _sd
+
+
 class MLService:
     """集中管理Machine Learning训练/推理逻辑 (Step1：仅搬家，不改算法/输出)。"""
     # --- Label taxonomy routing (phase vs abnormal breath sounds vs other events) ---
@@ -992,7 +1005,7 @@ class AudioViewer(QMainWindow):
         """
         # 0. 切歌前停止播放，避免旧音频仍在声卡播放。
         try:
-            sd.stop()
+            _get_sd().stop()
             self.timer.stop()
             self.is_playing = False
             if hasattr(self, "btn_play"):
@@ -1290,14 +1303,14 @@ class AudioViewer(QMainWindow):
         if not self.is_playing:
             pos = self.slider.value() / 1000.0
             start_sample = int(pos * self.sr)
-            sd.stop()
-            sd.play(self.audio[start_sample:], self.sr)
+            _get_sd().stop()
+            _get_sd().play(self.audio[start_sample:], self.sr)
             self.start_time = time.time() - pos
             self.timer.start()
             self.btn_play.setText("Pause")
             self.is_playing = True
         else:
-            sd.stop()
+            _get_sd().stop()
             self.timer.stop()
             self.btn_play.setText("Resume")
             self.is_playing = False
@@ -1322,7 +1335,7 @@ class AudioViewer(QMainWindow):
     def pause_timer(self):
         if self.is_playing:
             self.timer.stop()
-            sd.stop()
+            _get_sd().stop()
 
     def seek(self):
         self.time_label.setText(f"{self.slider.value() / 1000.0:.3f} s")
@@ -1330,8 +1343,8 @@ class AudioViewer(QMainWindow):
         self.time_line_spec.setPos(pos_sec)
         self.time_line_wave.setPos(pos_sec)
         if self.is_playing:
-            sd.stop()
-            sd.play(self.audio[int(pos_sec * self.sr):], self.sr)
+            _get_sd().stop()
+            _get_sd().play(self.audio[int(pos_sec * self.sr):], self.sr)
             self.start_time = time.time() - pos_sec
             self.timer.start()
 

@@ -1,9 +1,18 @@
 """Loop-playback dialog for a selected audio segment."""
 
 import numpy as np
-import sounddevice as sd
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QSlider, QPushButton, QLabel
 from PyQt5.QtCore import Qt, QTimer
+
+_sd = None
+
+
+def _get_sd():
+    """Lazy import sounddevice — PortAudio may be absent in headless CI."""
+    global _sd
+    if _sd is None:
+        import sounddevice as _sd
+    return _sd
 
 class LoopPlayer(QDialog):
     def __init__(self, audio_data, sr, start_sec, end_sec, region_item, parent=None):
@@ -49,8 +58,8 @@ class LoopPlayer(QDialog):
     def play_loop(self):
         start_sample = int(self.start * self.sr)
         end_sample = int(self.end * self.sr)
-        sd.stop()
-        sd.play(self.audio_data[start_sample:end_sample], self.sr)
+        _get_sd().stop()
+        _get_sd().play(self.audio_data[start_sample:end_sample], self.sr)
         self.start_time = time.time()
 
     def update_progress(self):
@@ -61,7 +70,7 @@ class LoopPlayer(QDialog):
     def stop(self):
         self.play_timer.stop()
         self.progress_timer.stop()
-        sd.stop()
+        _get_sd().stop()
         self.close()
 
 
