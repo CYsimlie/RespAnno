@@ -175,6 +175,8 @@ WAV file
   AUROC, AUPRC, Brier score, confusion matrix)
 - HSMM post-processing for Inspiration/Expiration/Pause phase labeling
 - Negative hard-example mining from user deletions and corrections
+- One-click "Clear Negatives" to reset hard negative samples per label
+- Real-time negative sample count shown in toolbar tooltip
 - Per-label model storage with feature importance ranking
 
 **Import / Export:**
@@ -236,8 +238,11 @@ pyinstaller --onefile --windowed --name RespAnno respanno/main.py
    select a preset label or type a custom one.
 5. **Edit annotations:** Double-click a labeled region to resize it.
    Right-click for context options (delete, change source type).
-   Ctrl+Z to undo.
-6. **Train an ML model:** Select a label from the ML toolbar dropdown
+   Ctrl+Z to undo.  Press Delete to remove a selected annotation
+   (the deleted region becomes a hard negative sample for training).
+6. **Iteratively refine:** Delete incorrect predictions.  Use the ML
+   toolbar "Clear Negatives" button to reset if needed, then re-train.
+7. **Train an ML model:** Select a label from the ML toolbar dropdown
    (e.g., "Wheeze"), then click "Train Model". The model trains on
    all manually reviewed (annotated) frames.
 7. **Auto-label unreviewed data:** Click "Auto-label Unreviewed" to

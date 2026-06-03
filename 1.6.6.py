@@ -26,7 +26,6 @@ import pyqtgraph as pg
 from PyQt5.QtGui import QKeySequence, QColor, QImage
 
 import numpy as np
-from collections import defaultdict
 
 
 from respanno.gui.dialogs.annotation_label_dialog import AnnotationLabelDialog  # noqa: F401
@@ -39,6 +38,7 @@ from respanno.gui.views.annot_view_box import AnnotViewBox  # noqa: F401
 from respanno.gui.views.wave_view_box import WaveViewBox  # noqa: F401
 from respanno.gui.widgets.clickable_slider import ClickableSlider  # noqa: F401
 from respanno.ml.service import MLService  # noqa: F401
+from respanno.ml.negatives import NegSampleManager  # noqa: F401
 
 
 _sd = None
@@ -72,10 +72,8 @@ class AudioViewer(QMainWindow):
 
         self.annotations = []  # list of (start, end, label, source)
 
-        # —— 机器学习硬负样本（仅用于训练，不导出，与标注显示无关）——
-        # 格式：{label: [(start, end, neg_id), ...]}
-        self.neg_segments = defaultdict(list)
-        self._neg_id_counter = 0
+        # —— 机器学习硬负样本管理器（仅用于训练，不导出，与标注显示无关）——
+        self.neg_manager = NegSampleManager()
 
         # —— 撤销栈（支持删除、认可等编辑操作的回退）——
         self._undo_stack = []
@@ -492,7 +490,7 @@ class AudioViewer(QMainWindow):
         help_menu.addAction(about_action)
 
     def init_ml_toolbar(self):
-        """初始化 Machine Learning 工具栏：标签选择 + 训练 + 自动标注。"""
+        """初始化 Machine Learning 工具栏：标签选择 + 训练 + 自动标注 + 负样本管理。"""
 
         toolbar = QToolBar("Machine Learning", self)
         self.addToolBar(Qt.TopToolBarArea, toolbar)
@@ -522,16 +520,23 @@ class AudioViewer(QMainWindow):
         toolbar.addWidget(self.ml_label_combo)
 
         # ===== 训练按钮 =====
-        action_train = QAction("Train Model", self)
-        action_train.setToolTip("Train a frame-level model for the selected label using current manual annotations")
-        action_train.triggered.connect(self.on_ml_train_clicked)
-        toolbar.addAction(action_train)
+        self.action_train_btn = QAction("Train Model", self)
+        self.action_train_btn.setToolTip("Train a frame-level model for the selected label using current manual annotations")
+        self.action_train_btn.triggered.connect(self.on_ml_train_clicked)
+        toolbar.addAction(self.action_train_btn)
 
         # ===== 自动标注按钮 =====
-        action_auto = QAction("Auto-label Unreviewed", self)
-        action_auto.setToolTip("Use the trained model to auto-label the selected label in unreviewed regions")
-        action_auto.triggered.connect(self.on_ml_auto_clicked)
-        toolbar.addAction(action_auto)
+        self.action_auto_btn = QAction("Auto-label Unreviewed", self)
+        self.action_auto_btn.setToolTip("Use the trained model to auto-label the selected label in unreviewed regions")
+        self.action_auto_btn.triggered.connect(self.on_ml_auto_clicked)
+        toolbar.addAction(self.action_auto_btn)
+
+        # ===== 清除负样本按钮 =====
+        self.action_clear_neg = QAction("Clear Negatives", self)
+        self.action_clear_neg.setToolTip("Remove all hard negative samples for the selected label")
+        self.action_clear_neg.triggered.connect(self.on_clear_negatives_clicked)
+        toolbar.addAction(self.action_clear_neg)
+        self._update_neg_count_tip()
 
         # ===== 标注颜色图例按钮 =====
         action_legend = QAction("Annotation Legend", self)
@@ -544,6 +549,7 @@ class AudioViewer(QMainWindow):
     def on_ml_label_changed(self, text):
         """下拉框标签变化时更新当前 ML 操作目标。"""
         self.current_ml_label = text
+        self._update_neg_count_tip()
 
     def on_ml_train_clicked(self):
         """训练按钮：对当前选中标签训练帧级模型。"""
@@ -560,6 +566,42 @@ class AudioViewer(QMainWindow):
             QMessageBox.information(self, "Auto Annotation", "Please select a label in the toolbar first.")
             return
         self.apply_model_for_label_on_unreviewed(label)
+
+    def on_clear_negatives_clicked(self):
+        """清除当前标签的全部硬负样本。"""
+        label = getattr(self, "current_ml_label", None)
+        if not label:
+            QMessageBox.information(self, "Clear Negatives", "Please select a label in the toolbar first.")
+            return
+        cnt = self.neg_manager.count(label)
+        if cnt == 0:
+            QMessageBox.information(self, "Clear Negatives",
+                                    f"No hard negative samples for label '{label}'.")
+            return
+        reply = QMessageBox.question(
+            self, "Clear Negatives",
+            f"Are you sure you want to clear all {cnt} hard negative samples "
+            f"for label '{label}'?\n\n"
+            f"These samples were collected from deleted/corrected annotations "
+            f"and help the model avoid false positives.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.neg_manager.clear(label)
+            self._update_neg_count_tip()
+            QMessageBox.information(self, "Clear Negatives",
+                                    f"Cleared {cnt} negative sample(s) for label '{label}'.")
+
+    def _update_neg_count_tip(self):
+        """更新清除负样本按钮的 tooltip，显示当前标签的负样本数量。"""
+        label = getattr(self, "current_ml_label", None)
+        cnt = self.neg_manager.count(label) if label else 0
+        act = getattr(self, "action_clear_neg", None)
+        if act is not None:
+            if cnt > 0:
+                act.setToolTip(f"Clear {cnt} hard negative sample(s) for '{label}' "
+                               f"(collected from deleted annotations)")
+            else:
+                act.setToolTip(f"No hard negative samples for '{label}'")
 
     def show_annotation_legend(self):
         """根据内置标签和颜色映射生成标注颜色图例。"""
@@ -1010,10 +1052,9 @@ class AudioViewer(QMainWindow):
         # 5) 清空数据结构
         self.annotations.clear()
         try:
-            self.neg_segments.clear()
+            self.neg_manager.clear_all()
         except Exception:
-            self.neg_segments = defaultdict(list)
-        self._neg_id_counter = 0
+            pass
 
         try:
             self._undo_stack.clear()
@@ -1360,7 +1401,7 @@ class AudioViewer(QMainWindow):
             if record_negative and old_item is not None:
                 try:
                     s, e, lab = float(old_item[0]), float(old_item[1]), str(old_item[2])
-                    neg_item = self._add_neg_segment(lab, s, e)
+                    neg_item = self.neg_manager.add(lab, s, e)
                 except Exception:
                     neg_item = None
 
@@ -1424,40 +1465,6 @@ class AudioViewer(QMainWindow):
                 self._span2spec.pop(sp, None)
                 break
 
-    # ==========================
-    # Machine Learning硬负样本 & 撤销栈
-    # ==========================
-    def _add_neg_segment(self, label: str, s: float, e: float):
-        """添加硬负样本段（仅用于模型训练），返回 (s, e, neg_id) 以便撤销。"""
-        try:
-            label = str(label)
-        except Exception:
-            label = ""
-        if not label:
-            return None
-        self._neg_id_counter += 1
-        item = (float(s), float(e), int(self._neg_id_counter))
-        try:
-            self.neg_segments[label].append(item)
-        except Exception:
-            if not hasattr(self, "neg_segments"):
-                self.neg_segments = defaultdict(list)
-            self.neg_segments[label].append(item)
-        return item
-
-    def _remove_neg_segment(self, label: str, neg_id: int):
-        """按 neg_id 删除硬负样本段。"""
-        try:
-            lst = self.neg_segments.get(str(label), [])
-        except Exception:
-            return
-        for i, it in enumerate(list(lst)):
-            try:
-                if int(it[2]) == int(neg_id):
-                    lst.pop(i)
-                    break
-            except Exception:
-                continue
 
     def _push_undo(self, rec: dict):
         try:
@@ -1724,7 +1731,7 @@ class AudioViewer(QMainWindow):
                 try:
                     lab = str(item[2])
                     neg_id = int(neg_item[2])
-                    self._remove_neg_segment(lab, neg_id)
+                    self.neg_manager.remove(lab, neg_id)
                 except Exception:
                     pass
             return
@@ -2375,7 +2382,7 @@ class AudioViewer(QMainWindow):
             self.annotations,
             self.stft_frame_times,
             label,
-            neg_segments=getattr(self, "neg_segments", None),
+            neg_segments=self.neg_manager.to_dict(),
             neg_margin=neg_margin,
         )
 
