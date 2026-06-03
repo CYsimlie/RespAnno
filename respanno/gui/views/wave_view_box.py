@@ -14,6 +14,8 @@ class WaveViewBox(pg.ViewBox):
 
     def mousePressEvent(self, ev):
         if ev.button() == Qt.LeftButton:
+            # 点击波形区域开始新标注时，取消标注面板的选中状态
+            self.parent._selected_span = None
             self.is_marking = True
             self.start_pos = self.mapToView(ev.pos()).x()
             self.parent.plot_waveform_highlight(None, None)

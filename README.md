@@ -254,7 +254,16 @@ pyinstaller --onefile --windowed --name RespAnno respanno/main.py
 | Ctrl+I | Import annotations |
 | Ctrl+P | Open settings dialog |
 | Ctrl+Z | Undo last annotation action |
+| Space | Play / Pause audio |
+| Left / Right | Seek backward / forward 1 s |
 | Up / Down | Previous / Next WAV file in directory |
+| Delete / Backspace | Delete selected annotation |
+| Ctrl+A | Accept (approve) selected ML annotation |
+| Ctrl+T | Train model for current ML label |
+| Ctrl+M | Auto-label unreviewed region for current ML label |
+| Enter | Commit span edit |
+| Esc | Cancel span edit |
+| F1 | About |
 | Ctrl+Q | Exit |
 
 ---

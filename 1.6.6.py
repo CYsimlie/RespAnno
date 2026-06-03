@@ -92,6 +92,7 @@ class AudioViewer(QMainWindow):
 
         # —— 编辑模式（双击 BoxSpan 进入）——
         self._editing_span = None   # 当前处于编辑态的 BoxSpan
+        self._selected_span = None  # 当前被点击选中的 BoxSpan（用于 Delete 等快捷键）
 
         # —— STFT 显示参数（配色方案与显示窗口上下限）——
         self.stft_cmap = "Heatmap"  # 可选："Heatmap"、"Grayscale"
@@ -216,21 +217,25 @@ class AudioViewer(QMainWindow):
         self.ml_models = {}             # 已训练模型 {label: {clf, threshold, feature_names, ...}}
         self.ml_service = MLService(self)  # ML 训练/推理调度器
 
-        # 调试快捷键：Ctrl+T 训练 Speech 模型
-        shortcut_train_wheeze = QShortcut(QKeySequence("Ctrl+T"), self)
-        shortcut_train_wheeze.activated.connect(
-            lambda: self.train_model_for_label("Speech")
-        )
+        # ========= 播放/暂停 (Space) =========
+        self.shortcut_play = QShortcut(QKeySequence(Qt.Key_Space), self)
+        self.shortcut_play.activated.connect(self.play_pause)
 
-        # ========= 快捷键：Ctrl+M 对 Speech 标签自动标注未审阅区域 =========
-        self.shortcut_auto_speech = QShortcut(QKeySequence("Ctrl+M"), self)
-        self.shortcut_auto_speech.activated.connect(
-            lambda: self.apply_model_for_label_on_unreviewed("Speech")
-        )
+        # ========= 快退/快进 (Left/Right) =========
+        self.shortcut_backward = QShortcut(QKeySequence(Qt.Key_Left), self)
+        self.shortcut_backward.activated.connect(lambda: self._seek_delta(-1.0))
+        self.shortcut_forward = QShortcut(QKeySequence(Qt.Key_Right), self)
+        self.shortcut_forward.activated.connect(lambda: self._seek_delta(1.0))
+
+        # ========= ML 训练/自动标注：使用当前 ML 下拉框选中的标签 =========
+        self.shortcut_train = QShortcut(QKeySequence("Ctrl+T"), self)
+        self.shortcut_train.activated.connect(self.on_ml_train_clicked)
+
+        self.shortcut_auto_label = QShortcut(QKeySequence("Ctrl+M"), self)
+        self.shortcut_auto_label.activated.connect(self.on_ml_auto_clicked)
 
         # ========= 撤销 (Ctrl+Z) =========
         self.shortcut_undo = QShortcut(QKeySequence("Ctrl+Z"), self)
-        # 设为 ApplicationShortcut，确保在任意子控件获得焦点时也能触发
         self.shortcut_undo.setContext(Qt.ApplicationShortcut)
         self.shortcut_undo.activated.connect(self.undo_last_action)
 
@@ -239,8 +244,7 @@ class AudioViewer(QMainWindow):
         self.shortcut_undo2.setContext(Qt.ApplicationShortcut)
         self.shortcut_undo2.activated.connect(self.undo_last_action)
 
-        # 当存在快捷键歧义时（多个控件绑定同一快捷键），Qt 可能触发
-        # activatedAmbiguously 而非 activated，对此也做连接以确保撤销生效
+        # 当存在快捷键歧义时，也连接 activatedAmbiguously 以确保撤销生效
         try:
             self.shortcut_undo.activatedAmbiguously.connect(self.undo_last_action)
             self.shortcut_undo2.activatedAmbiguously.connect(self.undo_last_action)
@@ -257,8 +261,7 @@ class AudioViewer(QMainWindow):
         except Exception:
             self.action_undo = None
 
-        # 应用级事件过滤器作为最后兜底，强制捕获 Ctrl+Z
-        # （防止被 GraphicsView 或输入控件吞掉）
+        # 应用级事件过滤器：处理需要复杂逻辑的快捷键（Delete/Ctrl+A/编辑模式等）
         try:
             app = QApplication.instance()
             if app is not None:
@@ -1077,6 +1080,15 @@ class AudioViewer(QMainWindow):
             _get_sd().play(self.audio[int(pos_sec * self.sr):], self.sr)
             self.start_time = time.time() - pos_sec
             self.timer.start()
+
+    def _seek_delta(self, delta_sec):
+        """快退/快进 delta_sec 秒（供 Left/Right 快捷键调用）。"""
+        if self.audio is None or self.duration <= 0:
+            return
+        pos = self.slider.value() / 1000.0 + delta_sec
+        pos = max(0.0, min(pos, self.duration))
+        self.slider.setValue(int(pos * 1000))
+        self.seek()
 
     def plot_waveform_highlight(self, start=None, end=None):
         if self.audio is None:
@@ -2384,10 +2396,10 @@ class AudioViewer(QMainWindow):
 
 
     def eventFilter(self, obj, event):
-        """应用级事件过滤器：强制捕获 Ctrl+Z 触发标注撤销（仅当撤销栈非空时）。
+        """应用级事件过滤器：处理需要复杂逻辑的快捷键。
 
-        QShortcut/QAction 在部分焦点或 GraphicsView 场景下可能不触发，
-        此处作为最后兜底；撤销栈为空时放行给控件自身处理。
+        包括：Ctrl+Z 撤销（兜底）、编辑模式 Enter/Esc、
+        Delete 删除选中标注、Ctrl+A 认可 ML 标注。
         """
         try:
             et = event.type()
@@ -2395,10 +2407,39 @@ class AudioViewer(QMainWindow):
                 key = event.key() if hasattr(event, "key") else None
                 mods = event.modifiers() if hasattr(event, "modifiers") else Qt.NoModifier
 
-                # Ctrl+Z
+                # Ctrl+Z 撤销
                 if (mods & Qt.ControlModifier) and key == Qt.Key_Z:
                     if getattr(self, "_undo_stack", None):
                         self.undo_last_action()
+                        try:
+                            event.accept()
+                        except Exception:
+                            pass
+                        return True
+
+                # Ctrl+A 认可选中的 ML 标注
+                if (mods & Qt.ControlModifier) and key == Qt.Key_A:
+                    sel = getattr(self, "_selected_span", None)
+                    if sel is not None:
+                        try:
+                            self.accept_annotation(sel)
+                        except Exception:
+                            pass
+                        try:
+                            event.accept()
+                        except Exception:
+                            pass
+                        return True
+
+                # Delete 键删除选中的标注
+                if key in (Qt.Key_Delete, Qt.Key_Backspace):
+                    sel = getattr(self, "_selected_span", None)
+                    if sel is not None:
+                        try:
+                            self.delete_annotation(sel)
+                            self._selected_span = None
+                        except Exception:
+                            pass
                         try:
                             event.accept()
                         except Exception:

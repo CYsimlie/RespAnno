@@ -75,9 +75,12 @@ class AnnotViewBox(pg.ViewBox):
         if ev.button() == Qt.LeftButton:
             hit = self._hit_span_under_cursor(ev)
             if hit is not None:
-                # 点击/双击落在已有标注上：交给 BoxSpan 处理，避免触发“拖拽标记”逻辑
+                # 点击落在已有标注上：记录为当前选中，交给 BoxSpan 处理
+                self.parent._selected_span = hit
                 ev.ignore()
                 return
+            # 点击空白区域：取消选中
+            self.parent._selected_span = None
             self.is_marking = True
             self.start_pos = self.mapToView(ev.pos()).x()
             self.parent.plot_waveform_highlight(None, None)  # 清除高亮
