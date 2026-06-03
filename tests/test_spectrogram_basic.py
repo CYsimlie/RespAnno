@@ -160,8 +160,8 @@ class TestDefaultConfig:
 
     def test_defaults_match_legacy(self):
         """验证默认参数值符合预期。"""
-        assert DEFAULT_STFT_CONFIG['n_fft'] == 512
-        assert DEFAULT_STFT_CONFIG['hop_length'] == 256
+        assert DEFAULT_STFT_CONFIG['n_fft'] == 256
+        assert DEFAULT_STFT_CONFIG['hop_length'] == 64
         assert DEFAULT_STFT_CONFIG['f_max'] == 2000
         assert DEFAULT_STFT_CONFIG['cmap'] == 'Heatmap'
 

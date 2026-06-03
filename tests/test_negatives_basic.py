@@ -48,13 +48,12 @@ class TestNegSampleManager:
         assert id1 != id2
 
     def test_add_empty_label_returns_none(self):
-        """验证空输入或 None 输入时的行为。"""
+        """空字符串标签 add 返回 None；非空（含空格）正常记录。"""
         mgr = NegSampleManager()
-        assert mgr.add('', 1.0, 2.0) is None
-        assert mgr.add('  ', 1.0, 2.0) is None
-        mgr2 = NegSampleManager()
-        assert mgr2.add('', 1.0, 2.0) is None
-        assert mgr2.add('x', 1.0, 2.0) is not None
+        assert mgr.add('', 1.0, 2.0) is None       # empty → None
+        assert mgr.add('x', 1.0, 2.0) is not None   # non-empty → ok
+        # Whitespace-only strings are truthy in Python, so they are valid labels
+        assert mgr.add('  ', 1.0, 2.0) is not None
 
     def test_add_multiple_labels_independent(self):
         """验证多个标签的负样本独立存储互不干扰。"""

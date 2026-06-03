@@ -116,8 +116,8 @@ def test_gui_calls_features_functions():
     required = ['compute_short_time_features', 'build_feature_matrix', 'normalize_feature_for_display']
     assert not [fn for fn in required if fn not in src]
 
-def test_gui_imports_hsmm():
-    """验证 1.6.6.py 的 AST 中包含对 respanno.hsmm 的 import 语句。"""
+def test_gui_imports_ml_service():
+    """验证 1.6.6.py 导入 respanno.ml.service（ML 管线的统一入口）。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -128,78 +128,35 @@ def test_gui_imports_hsmm():
             module = node.module or ''
             for alias in node.names:
                 imports.append(f'{module}.{alias.name}')
-    assert any(('respanno.ml.hsmm' in imp for imp in imports)), f"1.6.6.py must import from respanno.ml.hsmm\nFound: {[i for i in imports if 'respanno' in i]}"
+    assert any(('respanno.ml.service' in imp for imp in imports)), (
+        f'1.6.6.py must import from respanno.ml.service\n'
+        f'Found: {[i for i in imports if "respanno" in i]}')
 
-def test_gui_calls_hsmm_functions():
-    """验证 1.6.6.py 源码中包含对 hsmm functions 的函数调用。"""
-    src = _tokenized_source(GUI_FILE)
-    required = ['estimate_hop_sec', 'estimate_breath_cycle_sec', 'build_hsmm_prior_from_prefix_labels', 'build_hsmm_log_trans', 'hsmm_viterbi', 'state_seq_to_segments']
-    missing = [fn for fn in required if fn not in src]
-    assert not missing, f'Missing hsmm calls: {missing}'
+def test_ml_functions_reachable_via_service():
+    """验证 hsmm/classifier/phase/label_taxonomy 函数通过 service.py 可达。
 
-def test_gui_imports_label_taxonomy():
-    """验证 1.6.6.py 的 AST 中包含对 respanno.label.taxonomy 的 import 语句。"""
-    tree = _parse_ast(GUI_FILE)
-    imports = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                imports.append(alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            module = node.module or ''
-            for alias in node.names:
-                imports.append(f'{module}.{alias.name}')
-    assert any(('respanno.ml.label_taxonomy' in imp for imp in imports)), f"1.6.6.py must import from respanno.ml.label_taxonomy\nFound: {[i for i in imports if 'respanno' in i]}"
+    MLService 使用 lazy import 在运行时加载这些函数。
+    测试验证函数名出现在 service.py 的源码中。
+    """
+    import os
+    service_path = os.path.join(
+        os.path.dirname(__file__), '..', 'respanno', 'ml', 'service.py')
+    with open(service_path) as f:
+        svc_src = f.read()
 
-def test_gui_calls_label_taxonomy_functions():
-    """验证 1.6.6.py 源码中包含对 label taxonomy functions 的函数调用。"""
-    src = _tokenized_source(GUI_FILE)
-    required = ['label_kind', 'clear_ml_annotations']
-    missing = [fn for fn in required if fn not in src]
-    assert not missing, f'Missing label_taxonomy calls: {missing}'
+    required = {
+        'hsmm': ['estimate_hop_sec', 'estimate_breath_cycle_sec',
+                 'build_hsmm_prior_from_prefix_labels', 'build_hsmm_log_trans',
+                 'hsmm_viterbi', 'state_seq_to_segments'],
+        'label_taxonomy': ['label_kind', 'clear_ml_annotations'],
+        'phase_model': ['train_phase_model', 'apply_phase_model'],
+        'classifier': ['train_event_model', 'apply_event_model'],
+    }
+    for mod, fns in required.items():
+        missing = [fn for fn in fns if fn not in svc_src]
+        assert not missing, f'Missing {mod} lazy imports in service.py: {missing}'
 
-def test_gui_imports_phase_model():
-    """验证模型训练后正确存储到 ml_models 字典。"""
-    tree = _parse_ast(GUI_FILE)
-    imports = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                imports.append(alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            module = node.module or ''
-            for alias in node.names:
-                imports.append(f'{module}.{alias.name}')
-    assert any(('respanno.ml.phase_model' in imp for imp in imports)), f"1.6.6.py must import from respanno.ml.phase_model\nFound: {[i for i in imports if 'respanno' in i]}"
-
-def test_gui_calls_phase_model_functions():
-    """验证模型训练后正确存储到 ml_models 字典。"""
-    src = _tokenized_source(GUI_FILE)
-    required = ['train_phase_model', 'apply_phase_model']
-    missing = [fn for fn in required if fn not in src]
-    assert not missing, f'Missing phase_model calls: {missing}'
-
-def test_gui_imports_classifier():
-    """验证 1.6.6.py 的 AST 中包含对 respanno.classifier 的 import 语句。"""
-    tree = _parse_ast(GUI_FILE)
-    imports = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                imports.append(alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            module = node.module or ''
-            for alias in node.names:
-                imports.append(f'{module}.{alias.name}')
-    assert any(('respanno.ml.classifier' in imp for imp in imports)), f"1.6.6.py must import from respanno.ml.classifier\nFound: {[i for i in imports if 'respanno' in i]}"
-
-def test_gui_calls_classifier_functions():
-    """验证 1.6.6.py 源码中包含对 classifier functions 的函数调用。"""
-    src = _tokenized_source(GUI_FILE)
-    required = ['train_event_model', 'apply_event_model']
-    missing = [fn for fn in required if fn not in src]
-    assert not missing, f'Missing classifier calls: {missing}'
-ALLOWED_RESPANNO = {'annotation_io', 'preprocessing', 'spectrogram', 'features', 'hsmm', 'label_taxonomy', 'phase_model', 'classifier'}
+ALLOWED_RESPANNO = {'annotation_io', 'preprocessing', 'spectrogram', 'features', 'service', 'label_taxonomy', 'phase_model', 'classifier', 'hsmm'}
 
 def _respanno_refs_in_class(tree: ast.AST, class_name: str) -> list:
     refs = []
