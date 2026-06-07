@@ -13,13 +13,13 @@ class TestAllModulesImport:
 
     @pytest.mark.parametrize('module_name', RESPANNO_MODULES)
     def test_import(self, module_name):
-        """验证 respanno 子包可被 importlib.import_module 正常导入。"""
+        """Verify respanno 子包可被 importlib.import_module 正常import。"""
         mod = importlib.import_module(module_name)
         assert mod is not None
 
     @pytest.mark.parametrize('module_name', RESPANNO_MODULES)
     def test_has_version_or_doc(self, module_name):
-        """验证每个子包有 __version__ 或 __doc__。"""
+        """Verify每个子包有 __version__ 或 __doc__。"""
         mod = importlib.import_module(module_name)
         has_doc = bool(getattr(mod, '__doc__', None))
         has_version = bool(getattr(mod, '__version__', None))
@@ -29,7 +29,7 @@ class TestPublicSymbols:
 
     @pytest.mark.parametrize('module_name, attr_name, expected_type', [(mod, attr, typ) for (mod, attrs) in EXPECTED_ATTRS.items() for (attr, typ) in attrs])
     def test_attr_exists_and_type(self, module_name, attr_name, expected_type):
-        """验证：callable(obj)。"""
+        """Verify：callable(obj)。"""
         mod = importlib.import_module(module_name)
         obj = getattr(mod, attr_name)
         if expected_type == 'function':
@@ -42,7 +42,7 @@ class TestPublicSymbols:
 class TestRespannoTopLevel:
 
     def test_version_string(self):
-        """验证 respanno.__version__ 为字符串类型且非空。"""
+        """Verify respanno.__version__ 为字符串type且非空。"""
         import respanno
         ver = getattr(respanno, '__version__', None)
         assert ver is not None

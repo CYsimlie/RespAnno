@@ -161,7 +161,7 @@ class TestGoldenValues:
         expected_energy = n_fft * (amplitude ** 2 / 2)  # = 32.0
         mean_energy = float(np.mean(energy))
 
-        # 允许 ±15% 容差（窗函数 + 边界效应）
+        # 允许 ±15% 容差（窗函数 + boundary效应）
         assert 27.0 < mean_energy < 37.0, (
             f'振幅 {amplitude} 的纯音 能量 应 ≈ {expected_energy:.1f}，实际 {mean_energy:.1f}'
         )

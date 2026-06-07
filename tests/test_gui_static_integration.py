@@ -28,12 +28,12 @@ def _tokenized_source(path: str) -> str:
         return tokenize.untokenize(tokenize.generate_tokens(f.readline))
 
 def test_legacy_is_unchanged():
-    """验证 legacy/1.6.6.py 不包含对 respanno 模块的引用（保持原始快照）。"""
+    """Verify legacy/1.6.6.py 不包含对 respanno 模块的引用（保持原始快照）。"""
     text = _read_text(LEGACY_FILE)
     assert 'respanno' not in text, 'legacy/1.6.6.py must remain frozen'
 
 def test_gui_imports_annotation_io():
-    """验证 1.6.6.py 的 AST 中包含对 respanno.annotation.io 的 import 语句。"""
+    """Verify 1.6.6.py 的 AST 中包含对 respanno.annotation.io 的 import 语句。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -49,15 +49,15 @@ def test_gui_imports_annotation_io():
     assert found, f'1.6.6.py must import from {target}'
 
 def test_gui_calls_read_annotations():
-    """验证 1.6.6.py 源码中包含对 read annotations 的函数调用。"""
+    """Verify 1.6.6.py 源码中包含对 read annotations 的函数调用。"""
     assert 'read_annotations' in _tokenized_source(GUI_FILE)
 
 def test_gui_calls_write_annotations():
-    """验证 1.6.6.py 源码中包含对 write annotations 的函数调用。"""
+    """Verify 1.6.6.py 源码中包含对 write annotations 的函数调用。"""
     assert 'write_annotations' in _tokenized_source(GUI_FILE)
 
 def test_gui_imports_preprocessing():
-    """验证 1.6.6.py 的 AST 中包含对 respanno.preprocessing 的 import 语句。"""
+    """Verify 1.6.6.py 的 AST 中包含对 respanno.preprocessing 的 import 语句。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -71,13 +71,13 @@ def test_gui_imports_preprocessing():
     assert any(('respanno.audio.preprocessing' in imp for imp in imports))
 
 def test_gui_calls_preprocessing_functions():
-    """验证 1.6.6.py 源码中包含对 preprocessing functions 的函数调用。"""
+    """Verify 1.6.6.py 源码中包含对 preprocessing functions 的函数调用。"""
     src = _tokenized_source(GUI_FILE)
     required = ['apply_butter_filter', 'summarize_preprocessing', 'compute_target_sr', 'load_audio_file', 'get_original_sr']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_spectrogram():
-    """验证 1.6.6.py 的 AST 中包含对 respanno.spectrogram 的 import 语句。"""
+    """Verify 1.6.6.py 的 AST 中包含对 respanno.spectrogram 的 import 语句。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -91,13 +91,13 @@ def test_gui_imports_spectrogram():
     assert any(('respanno.dsp.spectrogram' in imp for imp in imports))
 
 def test_gui_calls_spectrogram_functions():
-    """验证 1.6.6.py 源码中包含对 spectrogram functions 的函数调用。"""
+    """Verify 1.6.6.py 源码中包含对 spectrogram functions 的函数调用。"""
     src = _tokenized_source(GUI_FILE)
     required = ['compute_stft_db', 'decimate_spec_for_display', 'get_palette_256', 'colorize_spectrogram']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_features():
-    """验证 1.6.6.py 的 AST 中包含对 respanno.features 的 import 语句。"""
+    """Verify 1.6.6.py 的 AST 中包含对 respanno.features 的 import 语句。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -111,13 +111,13 @@ def test_gui_imports_features():
     assert any(('respanno.dsp.features' in imp for imp in imports))
 
 def test_gui_calls_features_functions():
-    """验证 1.6.6.py 源码中包含对 features functions 的函数调用。"""
+    """Verify 1.6.6.py 源码中包含对 features functions 的函数调用。"""
     src = _tokenized_source(GUI_FILE)
     required = ['compute_short_time_features', 'build_feature_matrix', 'normalize_feature_for_display']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_ml_service():
-    """验证 1.6.6.py 导入 respanno.ml.service（ML 管线的统一入口）。"""
+    """Verify 1.6.6.py import respanno.ml.service（ML pipeline的统一入口）。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -133,10 +133,10 @@ def test_gui_imports_ml_service():
         f'Found: {[i for i in imports if "respanno" in i]}')
 
 def test_ml_functions_reachable_via_service():
-    """验证 hsmm/classifier/phase/label_taxonomy 函数通过 service.py 可达。
+    """Verify hsmm/classifier/phase/label_taxonomy 函数通过 service.py 可达。
 
-    MLService 使用 lazy import 在运行时加载这些函数。
-    测试验证函数名出现在 service.py 的源码中。
+    MLService 使用 lazy import 在运行时load这些函数。
+    testVerify函数名出现在 service.py 的源码中。
     """
     import os
     service_path = os.path.join(
@@ -173,13 +173,13 @@ def _respanno_refs_in_class(tree: ast.AST, class_name: str) -> list:
 GUI_MODULES = ['respanno/gui/widgets/clickable_slider.py', 'respanno/gui/widgets/color_bar.py', 'respanno/gui/widgets/color_check_delegate.py', 'respanno/gui/dialogs/annotation_label_dialog.py', 'respanno/gui/dialogs/loop_player.py', 'respanno/gui/dialogs/settings_dialog.py', 'respanno/gui/spans/span_label_item.py', 'respanno/gui/spans/box_span.py', 'respanno/gui/views/annot_view_box.py', 'respanno/gui/views/wave_view_box.py']
 
 def test_gui_module_files_exist():
-    """验证：os.path.isfile(path)。"""
+    """Verify：os.path.isfile(path)。"""
     for rel_path in GUI_MODULES:
         path = os.path.join(ROOT, rel_path)
         assert os.path.isfile(path), f'Missing module: {rel_path}'
 
 def test_gui_modules_compile():
-    """测试 join, AssertionError, compile 的行为。"""
+    """test join, AssertionError, compile 的行为。"""
     import py_compile
     for rel_path in GUI_MODULES:
         path = os.path.join(ROOT, rel_path)
@@ -202,14 +202,14 @@ def test_gui_imports_widget_classes():
     assert not missing, f'1.6.6.py missing GUI imports: {missing}'
 
 def test_mlservice_not_rewired():
-    """验证：any((allowed in full for allowed in ALLOWED_RESPANNO))。"""
+    """Verify：any((allowed in full for allowed in ALLOWED_RESPANNO))。"""
     tree = _parse_ast(GUI_FILE)
     refs = _respanno_refs_in_class(tree, 'MLService')
     for full in refs:
         assert any((allowed in full for allowed in ALLOWED_RESPANNO)), f'MLService must not import {full}'
 
 def test_boxspan_not_rewired():
-    """验证：not refs。"""
+    """Verify：not refs。"""
     tree = _parse_ast(GUI_FILE)
     refs = _respanno_refs_in_class(tree, 'BoxSpan')
     assert not refs, f'BoxSpan must not import respanno modules, found: {refs}'

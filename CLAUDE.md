@@ -4,11 +4,11 @@
 
 RespAnno is an interactive respiratory sound annotation tool with ML-assisted labeling, targeting SoftwareX journal submission.
 
-- **Version:** v1.6.6
+- **Version:** v1.0.0
 - **License:** MIT
 - **Entry point:** `1.6.6.py` (PyQt5 GUI, ~2446 lines, single class AudioViewer)
 - **Backend:** `respanno/` package (~5600 lines, 34 .py files, zero GUI dependency)
-- **Tests:** 454 tests across 23 test files (all pass, 0 skip)
+- **Tests:** 535 tests across 26 test files (534 pass, 1 skip)
 - **Test runner:** `conda run -n respanno python -m pytest tests -q`
 - **Compile check:** `conda run -n respanno python -m py_compile <file>`
 

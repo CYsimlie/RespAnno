@@ -9,7 +9,7 @@ class AnnotViewBox(pg.ViewBox):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
-        self.setMouseMode(self.PanMode)  # 默认禁用拖动画布
+        self.setMouseMode(self.PanMode)  # defaultdisable拖动画布
         self.is_marking = False
         self.start_pos = None
         self.temp_region = None
@@ -75,11 +75,11 @@ class AnnotViewBox(pg.ViewBox):
         if ev.button() == Qt.LeftButton:
             hit = self._hit_span_under_cursor(ev)
             if hit is not None:
-                # 点击落在已有标注上：记录为当前选中，交给 BoxSpan 处理
+                # 点击落在已有annotation上：记录为current选中，交给 BoxSpan handle
                 self.parent._selected_span = hit
                 ev.ignore()
                 return
-            # 点击空白区域：取消选中
+            # 点击空白region：cancel选中
             self.parent._selected_span = None
             self.is_marking = True
             self.start_pos = self.mapToView(ev.pos()).x()
@@ -116,7 +116,7 @@ class AnnotViewBox(pg.ViewBox):
             if end < start:
                 start, end = end, start
 
-            # 交由主窗口统一弹出“标记类型选择”对话框
+            # 交由主window统一弹出“marktypeselect”dialog
             self.parent.finalize_annotation(start, end)
 
             if self.temp_region:

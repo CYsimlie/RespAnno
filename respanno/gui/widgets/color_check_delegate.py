@@ -5,7 +5,7 @@ from PyQt5.QtGui import QPalette, QColor, QPainter, QPen, QBrush, QPainterPath
 from PyQt5.QtCore import Qt, QRect, QSize, QEvent
 
 class ColorCheckDelegate(QStyledItemDelegate):
-    """勾选后才上色；未勾选Display空框；整行可点击切换；方块尺寸更大"""
+    """勾选后才上色；未勾选Display空框；整行可点击switch；方块尺寸更大"""
     BOX_SIZE = 22  # 放大方块 (原来16)
     PADDING_X = 10
 
@@ -19,10 +19,10 @@ class ColorCheckDelegate(QStyledItemDelegate):
         else:
             painter.fillRect(rect, option.palette.base())
 
-        # 勾选状态
+        # 勾选status
         checked = (index.data(Qt.CheckStateRole) == Qt.Checked)
 
-        # 颜色 (来自 UserRole；未勾选也可以先拿着，但不填充)
+        # color (来自 UserRole；未勾选也可以先拿着，但不填充)
         color = index.data(Qt.UserRole)
         if not isinstance(color, QColor):
             try:
@@ -30,7 +30,7 @@ class ColorCheckDelegate(QStyledItemDelegate):
             except Exception:
                 color = QColor("#999999")
 
-        # 方块区域 (更大)
+        # 方块region (更大)
         box = QRect(
             rect.x() + self.PADDING_X,
             rect.y() + (rect.height() - self.BOX_SIZE) // 2,
@@ -55,7 +55,7 @@ class ColorCheckDelegate(QStyledItemDelegate):
             path.lineTo(box.right() - 4, box.top() + 5)
             painter.drawPath(path)
 
-        # 文本
+        # text
         text_rect = QRect(box.right() + 10, rect.y(), rect.width() - (box.width() + 20), rect.height())
         painter.setPen(option.palette.text().color())
         painter.drawText(text_rect, Qt.AlignVCenter | Qt.AlignLeft, index.data())
@@ -68,7 +68,7 @@ class ColorCheckDelegate(QStyledItemDelegate):
         return QSize(max(s.width(), 80), max(s.height(), 30))
 
     def editorEvent(self, event, model, option, index):
-        """把整行都变成点击区域：点击行内任意处都切换勾选"""
+        """把整行都变成点击region：点击行内任意处都switch勾选"""
         if event.type() in (QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick):
             if option.rect.contains(event.pos()):
                 state = index.data(Qt.CheckStateRole)

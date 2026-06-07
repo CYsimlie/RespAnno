@@ -31,7 +31,7 @@ def _write(path, content):
 class TestResolvePath:
 
     def test_finds_matching_csv(self):
-        """验证自动匹配同名 _csv 事件文件。"""
+        """Verifyauto匹配同名 _csv eventfile。"""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'recording.wav')
             evt = os.path.join(d, 'recording_events.csv')
@@ -41,7 +41,7 @@ class TestResolvePath:
             assert indexer.resolve_path(wav) == os.path.abspath(evt)
 
     def test_finds_matching_txt(self):
-        """验证自动匹配同名 _txt 事件文件。"""
+        """Verifyauto匹配同名 _txt eventfile。"""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'rec.wav')
             evt = os.path.join(d, 'rec_events.txt')
@@ -51,7 +51,7 @@ class TestResolvePath:
             assert indexer.resolve_path(wav) == os.path.abspath(evt)
 
     def test_finds_matching_json(self):
-        """验证自动匹配同名 _json 事件文件。"""
+        """Verifyauto匹配同名 _json eventfile。"""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'r.wav')
             evt = os.path.join(d, 'r_events.json')
@@ -61,7 +61,7 @@ class TestResolvePath:
             assert indexer.resolve_path(wav) == os.path.abspath(evt)
 
     def test_no_match_returns_none(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'x.wav')
             _write(wav, '')
@@ -69,17 +69,17 @@ class TestResolvePath:
             assert indexer.resolve_path(wav) is None
 
     def test_none_path_returns_none(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         indexer = EventsFileIndexer(MockViewer())
         assert indexer.resolve_path(None) is None
 
     def test_non_string_path_returns_none(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         indexer = EventsFileIndexer(MockViewer())
         assert indexer.resolve_path(123) is None
 
     def test_prefers_csv_over_txt_when_both_exist(self):
-        """验证：indexer.resolve_path(wav) == os.path.abspath(csv)。"""
+        """Verify：indexer.resolve_path(wav) == os.path.abspath(csv)。"""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'r.wav')
             csv = os.path.join(d, 'r_events.csv')
@@ -104,7 +104,7 @@ class TestResolvePath:
 class TestBuildIndex:
 
     def test_builds_and_caches(self):
-        """验证：d in indexer._index。"""
+        """Verify：d in indexer._index。"""
         with tempfile.TemporaryDirectory() as d:
             _write(os.path.join(d, 'a.wav'), '')
             _write(os.path.join(d, 'a_events.csv'), 'start,end,label\n1,2,X\n')
@@ -116,7 +116,7 @@ class TestBuildIndex:
 class TestParseFileCached:
 
     def test_caches_by_mtime(self):
-        """验证：rows1 == rows2。"""
+        """Verify：rows1 == rows2。"""
         with tempfile.TemporaryDirectory() as d:
             evt = os.path.join(d, 'events.csv')
             _write(evt, 'start,end,label\n1.0,2.0,Wheeze\n')
@@ -127,7 +127,7 @@ class TestParseFileCached:
             assert os.path.abspath(evt) in indexer._parse_cache
 
     def test_non_string_returns_empty(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         indexer = EventsFileIndexer(MockViewer())
         assert indexer.parse_file_cached(None) == []
         assert indexer.parse_file_cached(123) == []
@@ -135,7 +135,7 @@ class TestParseFileCached:
 class TestAutoImport:
 
     def test_imports_valid_rows(self):
-        """验证 respanno 子包可被 importlib.import_module 正常导入。"""
+        """Verify respanno 子包可被 importlib.import_module 正常import。"""
         viewer = MockViewer()
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'test.wav')
@@ -148,7 +148,7 @@ class TestAutoImport:
             assert viewer.imported[0][2] == 'Wheeze'
 
     def test_no_events_file_no_import(self):
-        """验证：len(viewer.imported) == 0。"""
+        """Verify：len(viewer.imported) == 0。"""
         viewer = MockViewer()
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'test.wav')
@@ -158,7 +158,7 @@ class TestAutoImport:
             assert len(viewer.imported) == 0
 
     def test_skips_end_before_start(self):
-        """验证：len(viewer.imported) == 1。"""
+        """Verify：len(viewer.imported) == 1。"""
         viewer = MockViewer()
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'test.wav')
@@ -173,6 +173,6 @@ class TestAutoImport:
 class TestDefaultConfig:
 
     def test_all_required_keys(self):
-        """验证：set(DEFAULT_AUTO_IMPORT_CFG.keys()) >= required。"""
+        """Verify：set(DEFAULT_AUTO_IMPORT_CFG.keys()) >= required。"""
         required = {'file_format', 'file_suffix', 'delimiter', 'custom_delimiter', 'skip_header_lines', 'start_col', 'end_col', 'label_col', 'source_col', 'json_start_key', 'json_end_key', 'json_label_key', 'json_source_key'}
         assert set(DEFAULT_AUTO_IMPORT_CFG.keys()) >= required

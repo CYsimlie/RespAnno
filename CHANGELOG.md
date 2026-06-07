@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0] — 2026-06-07
+
+### First public release
+
+- 535 tests across 26 test modules (534 pass, 1 skip), 85% code coverage
+- MLService dispatcher with full test coverage (24 tests, 96% line coverage)
+- Headless GUI widget tests covering 7 widget classes (37 tests)
+- Cross-process reproducibility verification via SHA-256 pipeline hashing
+- Performance baseline tests (report-only mode, non-blocking in CI)
+- CI/CD: GitHub Actions on 3 OS × 3 Python versions with coverage reports
+- All comments and docstrings translated to English
+- CHANGELOG, CITATION.cff, CONTRIBUTING.md, CODE_OF_CONDUCT.md, PROJECT_OUTLINE.md
+
 ## [1.6.6] — 2026-06-03
 
 ### Added

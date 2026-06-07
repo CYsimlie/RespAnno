@@ -17,7 +17,7 @@ def _make_viewer(n_frames=120, n_features=56, annotations=None, sr=4000, hop_len
 class TestNoFeatures:
 
     def test_returns_false_when_no_features(self):
-        """验证前置条件不满足时返回 False：no features。"""
+        """Verify前置条件不满足时返回 False：no features。"""
         viewer = MockViewer()
         ok = train_phase_model(viewer, 'Inspiration', random_state=42)
         assert ok is False
@@ -25,13 +25,13 @@ class TestNoFeatures:
 class TestNoPhaseAnnotations:
 
     def test_returns_false_when_no_annotations(self):
-        """验证前置条件不满足时返回 False：no annotations。"""
+        """Verify前置条件不满足时返回 False：no annotations。"""
         viewer = _make_viewer(annotations=[])
         ok = train_phase_model(viewer, 'Inspiration', random_state=42)
         assert ok is False
 
     def test_returns_false_without_insp_or_exp(self):
-        """验证前置条件不满足时返回 False：without insp or exp。"""
+        """Verify前置条件不满足时返回 False：without insp or exp。"""
         viewer = _make_viewer(annotations=[(0.5, 2.0, 'Wheeze', 'manual'), (2.5, 4.0, 'Crackles', 'manual')])
         ok = train_phase_model(viewer, 'Inspiration', random_state=42)
         assert ok is False
@@ -40,7 +40,7 @@ class TestTwoStateModel:
     """Only Inspiration or only Expiration → binary classifier."""
 
     def test_inspiration_only(self):
-        """验证仅有 Inspiration 标注时自动检测为 2 状态模型（Insp+Exp）。"""
+        """Verify仅有 Inspiration annotation时autodetect为 2 statusmodel（Insp+Exp）。"""
         viewer = _make_viewer(annotations=[(0.5, 2.0, 'Inspiration', 'manual')])
         ok = train_phase_model(viewer, 'Inspiration', random_state=42)
         assert ok is True
@@ -48,7 +48,7 @@ class TestTwoStateModel:
         assert len(info['classes']) == 2
 
     def test_expiration_only(self):
-        """验证仅有 Expiration 标注时自动检测为 2 状态模型。"""
+        """Verify仅有 Expiration annotation时autodetect为 2 statusmodel。"""
         viewer = _make_viewer(annotations=[(1.0, 3.0, 'Expiration', 'manual')])
         ok = train_phase_model(viewer, 'Expiration', random_state=42)
         assert ok is True
@@ -59,7 +59,7 @@ class TestThreeStateModel:
     """Both Inspiration + Expiration → multiclass with Pause."""
 
     def test_both_phases_yields_three_states(self):
-        """验证同时有 Inspiration 和 Expiration 标注时检测为 3 状态模型（含 Pause）。"""
+        """Verify同时有 Inspiration 和 Expiration annotation时detect为 3 statusmodel（含 Pause）。"""
         viewer = _make_viewer(annotations=[(0.5, 1.5, 'Inspiration', 'manual'), (2.0, 3.0, 'Expiration', 'manual')])
         ok = train_phase_model(viewer, 'Inspiration', random_state=42)
         assert ok is True
@@ -68,7 +68,7 @@ class TestThreeStateModel:
         assert 'Pause' in info['state_id_to_name'].values()
 
     def test_model_shared_to_both_keys(self):
-        """验证模型训练后正确存储到 ml_models 字典。"""
+        """Verifymodeltrain后正确存储到 ml_models 字典。"""
         viewer = _make_viewer(annotations=[(0.5, 1.5, 'Inspiration', 'manual'), (2.0, 3.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         assert 'Inspiration' in viewer.ml_models
@@ -78,7 +78,7 @@ class TestThreeStateModel:
 class TestHSMMPriors:
 
     def test_hsmm_prior_contains_duration_bounds(self):
-        """验证从已标注帧学习到的 HSMM 时长先验（dmin/dmax）在合理范围内。"""
+        """Verify从已annotation帧学习到的 HSMM 时长prior（dmin/dmax）在合理range内。"""
         viewer = _make_viewer(annotations=[(0.5, 1.5, 'Inspiration', 'manual'), (2.0, 3.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         prior = viewer.ml_models['Inspiration']['hsmm_prior']
@@ -88,14 +88,14 @@ class TestHSMMPriors:
         assert len(prior['dmax_frames']) >= 2
 
     def test_hsmm_prior_contains_classes(self):
-        """验证从已标注帧学习到的 HSMM 时长先验（dmin/dmax）在合理范围内。"""
+        """Verify从已annotation帧学习到的 HSMM 时长prior（dmin/dmax）在合理range内。"""
         viewer = _make_viewer(annotations=[(0.5, 1.5, 'Inspiration', 'manual'), (2.0, 3.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         prior = viewer.ml_models['Inspiration']['hsmm_prior']
         assert 'classes' in prior
 
     def test_pi_init_present_when_possible(self):
-        """验证：len(prior['pi_init']) >= 2。"""
+        """Verify：len(prior['pi_init']) >= 2。"""
         viewer = _make_viewer(annotations=[(0.5, 1.5, 'Inspiration', 'manual'), (2.0, 3.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         prior = viewer.ml_models['Inspiration']['hsmm_prior']
@@ -103,7 +103,7 @@ class TestHSMMPriors:
             assert len(prior['pi_init']) >= 2
 
     def test_model_info_has_required_keys(self):
-        """验证模型训练后正确存储到 ml_models 字典。"""
+        """Verifymodeltrain后正确存储到 ml_models 字典。"""
         viewer = _make_viewer(annotations=[(0.5, 1.5, 'Inspiration', 'manual'), (2.0, 3.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         info = viewer.ml_models['Inspiration']
@@ -114,7 +114,7 @@ class TestHSMMPriors:
 class TestDeterminism:
 
     def test_same_seed_same_model(self):
-        """验证模型训练后正确存储到 ml_models 字典。"""
+        """Verifymodeltrain后正确存储到 ml_models 字典。"""
         annotations = [(0.5, 1.5, 'Inspiration', 'manual'), (2.0, 3.0, 'Expiration', 'manual')]
         v1 = _make_viewer(seed=42, annotations=annotations)
         v2 = _make_viewer(seed=42, annotations=annotations)

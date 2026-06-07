@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 )
 
 class AnnotationLabelDialog(QDialog):
-    """标注标签选择对话框：支持预设类型 + Custom文本"""
+    """annotationlabelselectdialog：support预设type + Customtext"""
 
     def __init__(self, parent=None, builtin_labels=None, start=None, end=None, default_text=""):
         super().__init__(parent)
@@ -23,7 +23,7 @@ class AnnotationLabelDialog(QDialog):
         form = QFormLayout()
         layout.addLayout(form)
 
-        # 预设类型下拉框：如 哮鸣音(Wheeze)、爆裂音(Crackles) 等
+        # 预设typecombobox：如 哮鸣音(Wheeze)、爆裂音(Crackles) 等
         self.combo = QComboBox()
         self.combo.addItem("(No preset)", userData=None)
         if builtin_labels:
@@ -31,13 +31,13 @@ class AnnotationLabelDialog(QDialog):
                 self.combo.addItem(f"{cn} ({en})", userData=en)
         form.addRow("Preset type:", self.combo)
 
-        # 文本输入框：最终用于保存的标签文本 (通常是英文)
+        # textinput框：最终用于save的labeltext (通常是英文)
         self.line_edit = QLineEdit()
         if default_text:
             self.line_edit.setText(default_text)
         form.addRow("Label text:", self.line_edit)
 
-        # 选择预设时，自动把英文名写入文本框
+        # select预设时，auto把英文名写入text框
         def on_combo_changed(idx):
             en = self.combo.itemData(idx)
             if en:
@@ -45,7 +45,7 @@ class AnnotationLabelDialog(QDialog):
 
         self.combo.currentIndexChanged.connect(on_combo_changed)
 
-        # 底部按钮
+        # 底部button
         btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btn_box.accepted.connect(self._on_accept)
         btn_box.rejected.connect(self.reject)
@@ -54,14 +54,14 @@ class AnnotationLabelDialog(QDialog):
     def _on_accept(self):
         text = self.line_edit.text().strip()
         if not text:
-            # 不输入则视为取消
+            # 不input则视为cancel
             self.reject()
             return
         self._text = text
         self.accept()
 
     def get_text(self):
-        """模态执行并返回最终文本 (可能为 None)。"""
+        """模态执行并返回最终text (可能为 None)。"""
         if self.exec_() == QDialog.Accepted:
             return self._text
         return None

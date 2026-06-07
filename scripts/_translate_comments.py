@@ -6,7 +6,7 @@ Focuses on:
   3. Inline Chinese in non-string, non-variable-name positions
 
 Preserves:
-  - Chinese *data*: feature names like "谱质心", built-in labels like "哮鸣音"
+  - Chinese *data*: feature names like "谱centroid", built-in labels like "哮鸣音"
   - String literals used as keys or labels (these are content, not comments)
 
 Dry-run mode (default): prints what WOULD change without writing.

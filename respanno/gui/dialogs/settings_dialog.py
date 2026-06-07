@@ -1,6 +1,6 @@
 """Settings dialog with STFT / Display / Preprocessing / Auto Label Import / Features tabs.
 
-来源: 1.6.6.py 行号 79-762 (class SettingsDialog)
+Source: 1.6.6.py lines 79-762 (class SettingsDialog)
 """
 
 import numpy as np
@@ -46,7 +46,7 @@ class SettingsDialog(QDialog):
 
         self._incoming_feat_color_map = feature_color_map or {}
 
-        # —— 新增：读取音频时的预处理设置。默认开启 4000 Hz 重采样；滤波默认关闭，避免改变旧行为。——
+        # —— New：读取audio时的预handleset。default开启 4000 Hz resampling；filteringdefault关闭，避免改变旧行为。——
         self._preprocessing_enabled = bool(preprocessing_enabled)
         self._resample_enabled = bool(resample_enabled)
         try:
@@ -72,7 +72,7 @@ class SettingsDialog(QDialog):
             self._filter_order = 4
         self._filter_zero_phase = bool(filter_zero_phase)
 
-        # —— 新增：自动读取同名标签文件的解析设置。默认保持旧逻辑：auto/csv/txt、_events 后缀、自动分隔符、前3列为 start/end/label。——
+        # —— New：auto读取同名labelfile的parseset。default保持旧逻辑：auto/csv/txt、_events suffix、autodelimiter、前3列为 start/end/label。——
         default_label_settings = {
             "file_format": "auto",
             "file_suffix": "_events",
@@ -95,7 +95,7 @@ class SettingsDialog(QDialog):
 
         tabs = QTabWidget()
 
-        # ==== STFT 标签页 ====
+        # ==== STFT label页 ====
         stft_tab = QWidget()
         stft_layout = QFormLayout()
 
@@ -115,7 +115,7 @@ class SettingsDialog(QDialog):
         self.f_max_box.setValue(f_max)
         stft_layout.addRow("STFT Max Frequency (Hz)", self.f_max_box)
 
-        # ==== STFT Display (直方图 + colorbar + 上下限 + Reset Defaults)====
+        # ==== STFT Display (直方图 + colorbar + 上lower limit + Reset Defaults)====
         stft_group = QGroupBox("STFT Display: Histogram & ColorBar (Editable)")
         stft_vbox = QVBoxLayout(stft_group)
 
@@ -123,7 +123,7 @@ class SettingsDialog(QDialog):
         self.hist_widget = HistogramLUTWidget()
         self.hist_widget.setMinimumHeight(180)
 
-        # 给 HistogramLUT 提供一份图像数据，便于统计直方图
+        # 给 HistogramLUT 提供一份图像data，便于统计直方图
         if self._stft_vals is not None and np.any(np.isfinite(self._stft_vals)):
             tmp_img = ImageItem(self._stft_vals.T)  # 与主图方向一致：time × freq
         else:
@@ -149,7 +149,7 @@ class SettingsDialog(QDialog):
                 np.array([[0, 0, 0], [1, 1, 1]], float)
             )
 
-        # 初始化 colorbar 配色 (保留可编辑三角控件)
+        # initialize colorbar Color scheme (保留可edit三角控件)
         self._base_cmap = _make_cmap(self._stft_cmap)
         self.hist_widget.gradient.setColorMap(self._base_cmap)
         # 某些 PyQt5 + 老 pyqtgraph 需要 save/restore 一次才能正确刷新
@@ -159,7 +159,7 @@ class SettingsDialog(QDialog):
         except Exception:
             pass
 
-        # 中部：配色 + 上下限输入框
+        # 中部：Color scheme + 上lower limitinput框
         line1 = QHBoxLayout()
         line1.addWidget(QLabel("Color map:"))
         self.cmap_select = QComboBox()
@@ -186,7 +186,7 @@ class SettingsDialog(QDialog):
         line2.addWidget(self.vmax_edit)
         line2.addStretch(1)
 
-        # 初始化上下限：优先用传入值，否则用 1%~99% 分位
+        # initialize上lower limit：优先用传入值，否则用 1%~99% 分位
         def _init_levels_from_data():
             vals = self._stft_vals
             if vals is not None and np.any(np.isfinite(vals)):
@@ -203,10 +203,10 @@ class SettingsDialog(QDialog):
             ):
                 vmin, vmax = float(self._stft_vmin), float(self._stft_vmax)
 
-            # Settings到 HistogramLUTItem：这一步决定开窗区间 (与主图共享)
+            # Settings到 HistogramLUTItem：这一步决定开窗interval (与主图共享)
             self.hist_widget.setLevels(vmin, vmax)
 
-            # 同步到输入框
+            # synchronize到input框
             self.vmin_edit.blockSignals(True)
             self.vmax_edit.blockSignals(True)
             self.vmin_edit.setValue(vmin)
@@ -222,22 +222,22 @@ class SettingsDialog(QDialog):
         btn_line.addStretch(1)
         btn_line.addWidget(self.btn_reset)
 
-        # 组装到 group 里
+        # Assemble into group
         stft_vbox.addWidget(QLabel("STFT value histogram (drag the colorbar handles to set limits; colorbar is editable)"))
         stft_vbox.addWidget(self.hist_widget)
         stft_vbox.addLayout(line1)  # 配色
         stft_vbox.addLayout(line2)  # 下限/上限
         stft_vbox.addLayout(btn_line)  # Reset Defaults
 
-        # 组装进 STFT 页
+        # Assemble into STFT page
         try:
             stft_layout.addRow(stft_group)  # QFormLayout
         except Exception:
             stft_layout.addWidget(stft_group)  # 其他布局
 
-        # ========= 联动逻辑：levels ↔ 文本框，顺带保证与主图一致 =========
+        # ========= 联动逻辑：levels ↔ text框，顺带保证与主图一致 =========
 
-        # 1)拖动 HistogramLUT items (或编辑 colorbar) → 更新输入框
+        # 1)拖动 HistogramLUT items (或edit colorbar) → updateinput框
         def _levels_to_edits():
             try:
                 vmin, vmax = self.hist_widget.getLevels()
@@ -262,7 +262,7 @@ class SettingsDialog(QDialog):
             except Exception:
                 pass
 
-        # 2)改输入框 → 回写到 HistogramLUT (开窗)，colorbar 的条和三角会一起动
+        # 2)改input框 → 回写到 HistogramLUT (开窗)，colorbar 的条和三角会一起动
         def _edits_to_levels():
             vmin = self.vmin_edit.value()
             vmax = self.vmax_edit.value()
@@ -272,7 +272,7 @@ class SettingsDialog(QDialog):
         self.vmin_edit.valueChanged.connect(_edits_to_levels)
         self.vmax_edit.valueChanged.connect(_edits_to_levels)
 
-        # 3)切换配色 → 更新 colorbar (保留颜色编辑功能)
+        # 3)switchColor scheme → update colorbar (保留coloredit功能)
         def _on_cmap_changed_local(txt: str):
             self._stft_cmap = txt
             self._base_cmap = _make_cmap(txt)
@@ -286,7 +286,7 @@ class SettingsDialog(QDialog):
 
         self.cmap_select.currentTextChanged.connect(_on_cmap_changed_local)
 
-        # 4)Reset Defaults (上下限回到 1%~99% 分位)
+        # 4)Reset Defaults (上lower limit回到 1%~99% 分位)
         def _reset_defaults():
             self._stft_vmin = None
             self._stft_vmax = None
@@ -297,11 +297,11 @@ class SettingsDialog(QDialog):
         stft_tab.setLayout(stft_layout)
         tabs.addTab(stft_tab, "STFT")
 
-        # ==== Display标签页 ====
+        # ==== Displaylabel页 ====
         display_tab = QWidget()
         display_layout = QFormLayout()
 
-        # 缩放滑条 + 输入框
+        # zoom滑条 + input框
         self.zoom_slider = QSlider(Qt.Horizontal)
         self.zoom_slider.setRange(1, 200)
         self.zoom_slider.setValue(100)
@@ -319,7 +319,7 @@ class SettingsDialog(QDialog):
         zoom_layout.addWidget(self.zoom_input)
         display_layout.addRow("Waveform zoom factor", zoom_layout)
 
-        # 上下限
+        # 上lower limit
         self.ymin_box = QDoubleSpinBox()
         self.ymax_box = QDoubleSpinBox()
         self.ymin_box.setRange(-1e3, 1e3)
@@ -331,7 +331,7 @@ class SettingsDialog(QDialog):
         display_layout.addRow("Y-axis minimum", self.ymin_box)
         display_layout.addRow("Y-axis maximum", self.ymax_box)
 
-        # Reset Defaults按钮
+        # Reset Defaultsbutton
         self.reset_button = QPushButton("Reset Defaults")
         self.reset_button.clicked.connect(self.restore_default_y_range)
         display_layout.addRow(self.reset_button)
@@ -339,7 +339,7 @@ class SettingsDialog(QDialog):
         display_tab.setLayout(display_layout)
         tabs.addTab(display_tab, "Display")
 
-        # ==== Preprocessing 标签页：读取 WAV 时的重采样与可选滤波 ====
+        # ==== Preprocessing label页：读取 WAV 时的resampling与可选filtering ====
         preproc_tab = QWidget()
         preproc_layout = QFormLayout()
 
@@ -401,7 +401,7 @@ class SettingsDialog(QDialog):
         preproc_tab.setLayout(preproc_layout)
         tabs.addTab(preproc_tab, "Preprocessing")
 
-        # ==== Auto Label Import 标签页：配置自动读取同名标签文件的解析规则 ====
+        # ==== Auto Label Import label页：configureauto读取同名labelfile的parse规则 ====
         label_tab = QWidget()
         label_layout = QFormLayout()
         cfg = self._auto_label_import_settings
@@ -482,7 +482,7 @@ class SettingsDialog(QDialog):
 
         self.tabs = tabs
 
-        # 按钮
+        # button
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -491,7 +491,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(tabs)
         layout.addWidget(buttons)
 
-        # ==== Short-Time Features 标签页 ====
+        # ==== Short-Time Features label页 ====
         feat_tab = QWidget()
         feat_layout = QFormLayout()
 
@@ -512,17 +512,17 @@ class SettingsDialog(QDialog):
         all_feats = [
             "短时能量", "短时均值", "方差", "峰度", "偏度", "过零率", "teager能量算子",
 
-            # —— 频域/时频统计特征 (基于 STFT Amplitude谱)——
+            # —— frequency domain/时频统计feature (基于 STFT Amplitude谱)——
             "谱均值", "谱标准差", "谱中位数", "谱能量", "谱RMS", "谱幅和",
             "谱质心", "谱带宽", "谱偏度", "谱峰度", "谱滚降", "谱平坦度", "谱熵", "谱通量",
             "最大谱峰值", "谱峰数量",
             "低频能量占比", "中频能量占比", "高频能量占比",
             "谱四分位距", "谱MAD", "谱差分零交叉率", "谱平滑度", "主峰/次峰比", "谱复杂度",
 
-            # —— 窄带/少峰检测增强特征 ——
+            # —— 窄带/少crestdetect增强feature ——
             "主峰能量占比", "前三峰能量占比", "90%能量覆盖频点数", "主峰-3dB带宽", "主峰Q因子",
 
-            # —— 频移自相关 (cor)特征：100–1200 Hz 子带，基于每帧谱的“向下频移自相关”曲线 ——
+            # —— 频移autocorrelation (cor)feature：100–1200 Hz sub-band，基于每帧谱的“向下频移autocorrelation”曲线 ——
             "cor_dist_ratio_mean", "cor_mean_slope", "cor_max_slope", "cor_std_slope",
             "cor_max_peak", "cor_second_peak", "cor_peak_count", "cor_peak_density",
             "cor_area", "cor_std", "cor_cv", "cor_skewness", "cor_kurtosis",
@@ -539,22 +539,22 @@ class SettingsDialog(QDialog):
         # 应用有色对勾委托
         self.feat_list.setItemDelegate(ColorCheckDelegate(self.feat_list))
 
-        # —— 让勾选颜色与曲线一致 ——
-        # 颜色分配规则与主窗口一致：按“已选特征”的顺序分配
+        # —— 让勾选color与曲线一致 ——
+        # color分配规则与主window一致：按“已选feature”的顺序分配
         sel = list(selected_features or [])
         palette = getattr(parent, "feature_palette", [
             QColor("#e41a1c"), QColor("#377eb8"), QColor("#4daf4a"),
             QColor("#984ea3"), QColor("#ff7f00")
         ])
 
-        # 构建一个 {特征名: QColor} 映射
+        # 构建一个 {feature名: QColor} 映射
         color_map = {}
         used = 0
         for nm in sel[:5]:
             color_map[nm] = palette[used % len(palette)]
             used += 1
 
-        # 把颜色写到每个条目的 UserRole，并顺带给未选的分配备用颜色 (避免后续点选颜色重复)
+        # 把color写到每个条目的 UserRole，并顺带给未选的分配备用color (避免后续点选color重复)
         fallback_used = used
         for i in range(self.feat_list.count()):
             it = self.feat_list.item(i)
@@ -565,7 +565,7 @@ class SettingsDialog(QDialog):
                 it.setData(Qt.UserRole, palette[fallback_used % len(palette)])
                 fallback_used += 1
 
-        # 预勾选 (来自主窗口)
+        # 预勾选 (来自主window)
         pre = set(selected_features or [])
         for i in range(self.feat_list.count()):
             it = self.feat_list.item(i)
@@ -576,12 +576,12 @@ class SettingsDialog(QDialog):
             checked = [self.feat_list.item(i) for i in range(self.feat_list.count())
                        if self.feat_list.item(i).checkState() == Qt.Checked]
             if len(checked) > 5:
-                # 取消最新一次勾选 (把它设回未选)
-                # 注意：此槽在单个 item 改变时触发，找到那个 item
+                # cancel最新一次勾选 (把它设回未选)
+                # 注意：此槽在single item 改变时trigger，找到那个 item
                 snd = feat_tab.sender()
                 if isinstance(snd, QListWidget):
                     pass  # 兼容性占位
-                # 简单策略：从末尾开始把第6个之后的设回未选
+                # 简单策略：从末尾start把第6个之后的设回未选
                 for it in checked[5:]:
                     it.setCheckState(Qt.Unchecked)
 
@@ -592,18 +592,18 @@ class SettingsDialog(QDialog):
         tabs.addTab(feat_tab, "Short-Time Features")
 
     def on_slider_changed(self, value):
-        """滑条改变时更新倍数输入框和上下限"""
+        """滑条改变时update倍数input框和上lower limit"""
         zoom = value / 100
         self.zoom_input.setValue(zoom)
         self.apply_zoom_to_range(zoom)
 
     def on_input_changed(self, value):
-        """手动输入缩放倍数时更新滑条和上下限"""
+        """manualinputzoom倍数时update滑条和上lower limit"""
         self.zoom_slider.setValue(int(value * 100))
         self.apply_zoom_to_range(value)
 
     def apply_zoom_to_range(self, zoom):
-        """根据倍数缩放原始的 min/max 并更新Display范围"""
+        """根据倍数zoom原始的 min/max 并updateDisplayrange"""
         center = (self.default_ymin + self.default_ymax) / 2
         half_range = (self.default_ymax - self.default_ymin) / 2 / zoom
         new_ymin = center - half_range
@@ -612,7 +612,7 @@ class SettingsDialog(QDialog):
         self.ymax_box.setValue(new_ymax)
 
     def restore_default_y_range(self):
-        """Reset Defaults的自动计算的范围"""
+        """Reset Defaults的autocompute的range"""
         self.ymin_box.setValue(self.default_ymin)
         self.ymax_box.setValue(self.default_ymax)
         self.zoom_input.setValue(1.0)

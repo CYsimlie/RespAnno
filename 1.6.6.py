@@ -1,14 +1,14 @@
 import os
 import sys
 
-# 构造 Qt plugins 目录的绝对路径（兼容不同 PyQt5 安装布局）
+# Construct the absolute path to the Qt plugins directory (compatible with different PyQt5 installation layouts)
 base_path = os.path.join(sys.base_prefix, "Lib", "site-packages", "PyQt5", "Qt5", "plugins")
 
-# 若 Qt5 层级不存在，回退至无 Qt5 层级的路径
+# If the Qt5-level directory does not exist, fall back to the path without the Qt5 level
 if not os.path.exists(base_path):
     base_path = os.path.join(sys.base_prefix, "Lib", "site-packages", "PyQt5", "Qt", "plugins")
 
-# 设置 QT 插件环境变量，确保 Qt 运行时能找到 platform plugins
+# Set the QT plugin environment variable to ensure the Qt runtime can locate platform plugins
 os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = base_path
 
 import time
@@ -72,42 +72,42 @@ class AudioViewer(QMainWindow):
 
         self.annotations = []  # list of (start, end, label, source)
 
-        # —— 机器学习硬负样本管理器（仅用于训练，不导出，与标注显示无关）——
+        # Machine-learning hard-negative sample manager (training only; not exported; unrelated to annotation display)
         self.neg_manager = NegSampleManager()
 
-        # —— 撤销栈（支持删除、认可等编辑操作的回退）——
+        # Undo stack (supports rollback of delete, accept, and other edit operations)
         self._undo_stack = []
         self._undo_maxlen = 100
 
-        # —— 多轨标注管理（最多 3 轨，仅用于标注视图）——
+        # Multi-lane annotation management (max 3 lanes; annotation view only)
         self.MAX_LANES = 3
-        self.LANE_H = 0.35          # 单轨高度
-        self.LANE_GAP = 0.25        # 轨道间距
-        self._lanes = [[] for _ in range(self.MAX_LANES)]    # 每轨占用区间 [(s, e), ...]
-        self._spans = []                                      # 当前所有 BoxSpan
-        self._span2spec = {}                                  # BoxSpan → 频谱 LinearRegionItem
-        self._span2idx = {}                                   # BoxSpan → annotations 索引
+        self.LANE_H = 0.35          # Single-lane height
+        self.LANE_GAP = 0.25        # Lane gap
+        self._lanes = [[] for _ in range(self.MAX_LANES)]    # Occupied intervals per lane [(s, e), ...]
+        self._spans = []                                      # All current BoxSpan instances
+        self._span2spec = {}                                  # BoxSpan to spectrogram LinearRegionItem mapping
+        self._span2idx = {}                                   # BoxSpan to annotations index mapping
 
-        # —— 编辑模式（双击 BoxSpan 进入）——
-        self._editing_span = None   # 当前处于编辑态的 BoxSpan
-        self._selected_span = None  # 当前被点击选中的 BoxSpan（用于 Delete 等快捷键）
+        # Edit mode (double-click a BoxSpan to enter)
+        self._editing_span = None   # BoxSpan currently in edit mode
+        self._selected_span = None  # Currently selected BoxSpan (used by Delete and other shortcuts)
 
-        # —— STFT 显示参数（配色方案与显示窗口上下限）——
-        self.stft_cmap = "Heatmap"  # 可选："Heatmap"、"Grayscale"
-        self.stft_vmin = None       # None 表示自动取 1%~99% 分位数
+        # STFT display parameters (color scheme and display window bounds)
+        self.stft_cmap = "Heatmap"  # Options: "Heatmap", "Grayscale"
+        self.stft_vmin = None       # None means auto-compute from the 1st-99th percentile
         self.stft_vmax = None
-        self._last_spec_vals = None  # 最近一次 STFT 原始数据 (freq×time)，用于直方图统计与重着色
+        self._last_spec_vals = None  # Most recent STFT raw data (freq x time), used for histogram statistics and recoloring
 
-        # —— 短时特征曲线配色（预定义不重复色板，最多支持 10 条曲线）——
+        # Short-time feature curve color palette (predefined, non-repeating; supports up to 10 curves)
         self.feature_palette = [
             QColor("#e41a1c"), QColor("#377eb8"), QColor("#4daf4a"),
             QColor("#984ea3"), QColor("#ff7f00"), QColor("#a65628"),
             QColor("#f781bf"), QColor("#999999"), QColor("#66c2a5"),
             QColor("#d95f02")
         ]
-        self.feature_color_map = {}  # {特征名: QColor}，按所选特征顺序依次分配
+        self.feature_color_map = {}  # {feature_name: QColor}, assigned sequentially in selection order
 
-        # —— 标注类型与颜色管理（内置呼吸音标签及对应颜色）——
+        # Annotation type and color management (built-in respiratory sound labels with corresponding colors)
         self.annotation_builtin_labels = [
             ("哮鸣音", "wheeze"),
             ("爆裂音", "Crackles"),
@@ -120,7 +120,7 @@ class AudioViewer(QMainWindow):
             ("吸气", "Inspiration"),
         ]
 
-        # 内置标签的固定颜色映射
+        # Fixed color mapping for built-in labels
         self.annotation_color_builtin = {
             "Wheeze": QColor("#e41a1c"),       # 红
             "Crackles": QColor("#377eb8"),      # 蓝
@@ -133,33 +133,33 @@ class AudioViewer(QMainWindow):
             "Inspiration": QColor("#66c2a5"),     # 青绿
         }
 
-        # 自定义标签的自动配色色板
+        # Auto-coloring palette for custom labels
         self.annotation_color_palette = [
             QColor("#e41a1c"), QColor("#377eb8"), QColor("#4daf4a"),
             QColor("#984ea3"), QColor("#ff7f00"), QColor("#a65628"),
             QColor("#f781bf"), QColor("#999999"), QColor("#66c2a5"),
             QColor("#d95f02"),
         ]
-        self.annotation_color_map = {}  # {标签文本: QColor}
+        self.annotation_color_map = {}  # {label_text: QColor}
         self._annotation_color_used = 0
 
-        # 当前 ML 操作的目标标签（由 init_ml_toolbar 中的下拉框赋值）
+        # Target label for the current ML operation (assigned by the combo box in init_ml_toolbar)
         self.current_ml_label = None
 
         self.init_ui()
         self.audio_files = []
         self.current_file_index = -1
 
-        self.last_export_path = None  # 上次导出的 CSV 路径（用于下次导出时沿用同一目录）
-        self.default_export_annotation_name = "annotations_events.csv"  # 当前 WAV 对应的默认导出文件名
+        self.last_export_path = None  # Last export CSV path (reused as the default directory for the next export)
+        self.default_export_annotation_name = "annotations_events.csv"  # Default export filename for the current WAV
 
         self.showing_fft = False
 
-        self.wave_y_range = None  # 波形显示范围 (ymin, ymax)
+        self.wave_y_range = None  # Waveform display range (ymin, ymax)
 
-        self.last_settings_tab_index = 0  # 上次打开的 Settings 标签页索引
+        self.last_settings_tab_index = 0  # Index of the last-opened Settings tab
 
-        # —— 音频加载预处理参数（默认启用 4000 Hz 重采样，滤波默认关闭以保持原始音频内容不变）——
+        # Audio loading preprocessing parameters (4000 Hz resampling enabled by default; filtering disabled by default to preserve original audio content)
         self.preprocessing_enabled = True
         self.resample_on_load_enabled = True
         self.resample_target_sr = 4000
@@ -173,8 +173,8 @@ class AudioViewer(QMainWindow):
         self.audio_preprocess_summary = ""
 
 
-        # —— 同名事件文件自动导入（可开关）——
-        # 规则：与 WAV 同目录下的 <wav_base>_events.(csv|txt)
+        # Auto-import of matching events files (toggleable)
+        # Rule: look for <wav_base>_events.(csv|txt) in the same directory as the WAV file
         self.auto_import_events_enabled = False
         self._events_index_cache = {}  # {folder(abs): {wav_base_lower: events_path}}
         self._events_parse_cache = {}  # {events_path(abs): (mtime, rows)}
@@ -193,63 +193,63 @@ class AudioViewer(QMainWindow):
             "json_label_key": "label",
             "json_source_key": "source",
         }
-        self.show_y_axis = False  # 初始隐藏 Y 轴
+        self.show_y_axis = False  # Initially hide the Y-axis
 
-        # —— 短时特征默认选择（可在 Settings 中修改）——
+        # Default short-time feature selection (configurable in Settings)
         self.selected_features = ["短时能量", "过零率", "谱质心"]
 
-        # 短时特征曲线缓存 {特征名: pg.PlotDataItem}
+        # Short-time feature curve cache {feature_name: pg.PlotDataItem}
         self.feature_curves = {}
 
-        # —— 性能优化：切换文件时仅加载波形与 STFT，FFT 与短时特征改为懒加载——
+        # Performance optimization: when switching files, only load waveform and STFT; FFT and short-time features are lazy-loaded on demand
         self.features_dirty = True
         self.fft_dirty = True
         self._display_wave_max_points = 50000
         self._spec_display_max_time_bins = 2500
         self._spec_display_max_freq_bins = 512
 
-        # —— 机器学习相关状态 ——
-        self.stft_frame_times = None    # 帧时间戳 1D array (T,)
-        self.stft_features = None       # 帧特征 2D array (T, D)
-        self.stft_feature_names = None  # 特征名列表 list[str]
-        self.ml_models = {}             # 已训练模型 {label: {clf, threshold, feature_names, ...}}
-        self.ml_service = MLService(self)  # ML 训练/推理调度器
+        # Machine-learning state
+        self.stft_frame_times = None    # Frame timestamps, 1D array (T,)
+        self.stft_features = None       # Frame features, 2D array (T, D)
+        self.stft_feature_names = None  # Feature name list, list[str]
+        self.ml_models = {}             # Trained models {label: {clf, threshold, feature_names, ...}}
+        self.ml_service = MLService(self)  # ML training/inference dispatcher
 
-        # ========= 播放/暂停 (Space) =========
+        # ========= Play / Pause (Space) =========
         self.shortcut_play = QShortcut(QKeySequence(Qt.Key_Space), self)
         self.shortcut_play.activated.connect(self.play_pause)
 
-        # ========= 快退/快进 (Left/Right) =========
+        # ========= Seek backward / forward (Left / Right) =========
         self.shortcut_backward = QShortcut(QKeySequence(Qt.Key_Left), self)
         self.shortcut_backward.activated.connect(lambda: self._seek_delta(-1.0))
         self.shortcut_forward = QShortcut(QKeySequence(Qt.Key_Right), self)
         self.shortcut_forward.activated.connect(lambda: self._seek_delta(1.0))
 
-        # ========= ML 训练/自动标注：使用当前 ML 下拉框选中的标签 =========
+        # ========= ML training / auto-labeling: uses the label selected in the ML combo box =========
         self.shortcut_train = QShortcut(QKeySequence("Ctrl+T"), self)
         self.shortcut_train.activated.connect(self.on_ml_train_clicked)
 
         self.shortcut_auto_label = QShortcut(QKeySequence("Ctrl+M"), self)
         self.shortcut_auto_label.activated.connect(self.on_ml_auto_clicked)
 
-        # ========= 撤销 (Ctrl+Z) =========
+        # ========= Undo (Ctrl+Z) =========
         self.shortcut_undo = QShortcut(QKeySequence("Ctrl+Z"), self)
         self.shortcut_undo.setContext(Qt.ApplicationShortcut)
         self.shortcut_undo.activated.connect(self.undo_last_action)
 
-        # 同时注册系统标准 Undo 快捷键（Windows/Linux: Ctrl+Z, macOS: Cmd+Z）
+        # Also register the system-standard Undo shortcut (Windows/Linux: Ctrl+Z, macOS: Cmd+Z)
         self.shortcut_undo2 = QShortcut(QKeySequence.Undo, self)
         self.shortcut_undo2.setContext(Qt.ApplicationShortcut)
         self.shortcut_undo2.activated.connect(self.undo_last_action)
 
-        # 当存在快捷键歧义时，也连接 activatedAmbiguously 以确保撤销生效
+        # When shortcut ambiguity exists, also connect activatedAmbiguously to ensure Undo works
         try:
             self.shortcut_undo.activatedAmbiguously.connect(self.undo_last_action)
             self.shortcut_undo2.activatedAmbiguously.connect(self.undo_last_action)
         except Exception:
             pass
 
-        # 额外注册 QAction 形式的 Undo（更贴近 Qt 标准动作系统，某些场景下比 QShortcut 更可靠）
+        # Additionally register an Undo QAction (closer to the Qt standard action system; more reliable than QShortcut in some scenarios)
         try:
             self.action_undo = QAction("Undo", self)
             self.action_undo.setShortcut(QKeySequence.Undo)
@@ -259,7 +259,7 @@ class AudioViewer(QMainWindow):
         except Exception:
             self.action_undo = None
 
-        # 应用级事件过滤器：处理需要复杂逻辑的快捷键（Delete/Ctrl+A/编辑模式等）
+        # Application-level event filter: handles shortcuts requiring complex logic (Delete, Ctrl+A, edit mode, etc.)
         try:
             app = QApplication.instance()
             if app is not None:
@@ -276,7 +276,7 @@ class AudioViewer(QMainWindow):
         self.spec_title_base = "STFT Spectrogram"
         self.spec_stft_plot.setTitle(self.spec_title_base)
 
-        # 监听 STFT 图鼠标移动，通过 ViewBox 矩形判断是否在绘图区域内
+        # Listen for mouse movement on the STFT plot; use the ViewBox rectangle to determine if the cursor is inside the plotting area
         self._stft_proxy = pg.SignalProxy(
             self.spec_stft_plot.scene().sigMouseMoved, rateLimit=60, slot=self._on_stft_mouse_move_title
         )
@@ -296,9 +296,9 @@ class AudioViewer(QMainWindow):
         self.wave_curve = self.wave_plot.plot([], [])
         self.wave_plot.hideAxis('left')
 
-        self.spec_title_base = "STFT Spectrogram"  # 基础标题
+        self.spec_title_base = "STFT Spectrogram"  # Base title
         self.spec_stft_plot.setTitle(self.spec_title_base)
-        self._stft_proxy = pg.SignalProxy(  # 监听 STFT 图的鼠标移动
+        self._stft_proxy = pg.SignalProxy(  # Listen for mouse movement on the STFT plot
             self.spec_stft_plot.scene().sigMouseMoved, rateLimit=60, slot=self._on_stft_mouse_move_title
         )
 
@@ -309,7 +309,7 @@ class AudioViewer(QMainWindow):
         self.annot_plot.setLabel('bottom', 'Time', units='s')
         self.annot_plot.hideAxis('left')
 
-        # 标注区 Y 轴固定为 3 行高度
+        # Annotation area Y-axis is fixed at 3-lane height
         self.annot_plot.hideAxis('left')
         H = self.MAX_LANES * (self.LANE_H + self.LANE_GAP)
         self.annot_plot.setYRange(0, H)
@@ -358,29 +358,29 @@ class AudioViewer(QMainWindow):
         self.slider.valueChanged.connect(self.on_slider_move)
         self.time_label = QLabel("0.000 s")
 
-        # —— 短时特征页（仅负责显示，计算逻辑由独立模块处理）——
+        # Short-time features page (display only; computation logic is handled by a separate module)
         self.feat_plot = pg.PlotWidget(title="Short-Time Features (Normalized Display)")
         self.feat_plot.setMouseEnabled(x=True, y=False)
         self.feat_plot.setLabel('bottom', 'Time', units='s')
         self.feat_plot.addLegend()
-        # 仅允许 X 轴缩放/拖动，禁用 Y 轴
+        # Allow only X-axis zoom/pan; disable the Y-axis
         self.feat_plot.setMouseEnabled(x=True, y=False)
         pi = self.feat_plot.getPlotItem()
 
-        # 隐藏 Y 轴（坐标线、刻度、标签均不显示）
+        # Hide the Y-axis (axis line, ticks, and labels are all hidden)
         pi.hideAxis('left')
         try:
             pi.hideAxis('right')
         except Exception:
             pass
 
-        # 关闭网格
+        # Turn off the grid
         pi.showGrid(x=False, y=False)
 
-        # 时间轴与 STFT 同步缩放/平移
+        # Synchronize time-axis zoom/pan with the STFT plot
         self.feat_plot.setXLink(self.spec_stft_plot)
 
-        # 去除多余边距，避免隐藏轴后仍留白
+        # Remove extra margins to avoid whitespace after hiding the axis
         pi.layout.setContentsMargins(0, 0, 0, 0)
         self.feat_plot.setContentsMargins(0, 0, 0, 0)
 
@@ -389,25 +389,25 @@ class AudioViewer(QMainWindow):
         _feat_layout.setContentsMargins(0, 0, 0, 0)
         _feat_layout.addWidget(self.feat_plot)
 
-        # —— 页面栈：STFT / FFT / 短时特征 ——
+        # Page stack: STFT / FFT / Short-Time Features
         self.spec_stack = QStackedWidget()
-        self.spec_stack.addWidget(self.spec_stft_plot)  # 第 0 页：STFT
-        self.spec_stack.addWidget(self.spec_fft_plot)   # 第 1 页：FFT
-        self.spec_stack.addWidget(self.feat_page)        # 第 2 页：短时特征
-        self.spec_stack.setCurrentWidget(self.spec_stft_plot)  # 默认显示 STFT
+        self.spec_stack.addWidget(self.spec_stft_plot)  # Page 0: STFT
+        self.spec_stack.addWidget(self.spec_fft_plot)   # Page 1: FFT
+        self.spec_stack.addWidget(self.feat_page)        # Page 2: Short-Time Features
+        self.spec_stack.setCurrentWidget(self.spec_stft_plot)  # Default to STFT
 
-        # —— 垂直分割器：上（页面栈）| 中（波形）| 下（标注）——
+        # Vertical splitter: top (page stack) | middle (waveform) | bottom (annotations)
         self.main_splitter = QSplitter(Qt.Vertical)
-        self.main_splitter.addWidget(self.spec_stack)   # 上：页面栈
-        self.main_splitter.addWidget(self.wave_plot)    # 中：波形
-        self.main_splitter.addWidget(self.annot_plot)   # 下：标注
+        self.main_splitter.addWidget(self.spec_stack)   # Top: page stack
+        self.main_splitter.addWidget(self.wave_plot)    # Middle: waveform
+        self.main_splitter.addWidget(self.annot_plot)   # Bottom: annotations
 
-        # 拉伸比例（可按实际需求调整）
+        # Stretch factors (adjustable according to actual needs)
         self.main_splitter.setStretchFactor(0, 3)
         self.main_splitter.setStretchFactor(1, 1)
         self.main_splitter.setStretchFactor(2, 1)
 
-        # 禁止各面板被完全折叠
+        # Prevent any panel from being collapsed entirely
         self.main_splitter.setCollapsible(0, False)
         self.main_splitter.setCollapsible(1, False)
         self.main_splitter.setCollapsible(2, False)
@@ -438,10 +438,10 @@ class AudioViewer(QMainWindow):
         self.init_ml_toolbar()
 
     def init_menu_bar(self):
-        """创建菜单栏：File / Settings / Help。"""
+        """Create the menu bar: File / Settings / Help."""
         menu_bar = self.menuBar()
 
-        # ===== File 菜单 =====
+        # ===== File menu =====
         file_menu = menu_bar.addMenu("File")
 
         open_audio_action = QAction("Import Audio", self)
@@ -466,7 +466,7 @@ class AudioViewer(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        # ===== Settings 菜单 =====
+        # ===== Settings menu =====
         settings_menu = menu_bar.addMenu("Settings")
 
         param_action = QAction("Settings", self)
@@ -481,7 +481,7 @@ class AudioViewer(QMainWindow):
         auto_import_events_action.triggered.connect(self.toggle_auto_import_events)
         settings_menu.addAction(auto_import_events_action)
         self.auto_import_events_action = auto_import_events_action
-        # ===== Help 菜单 =====
+        # ===== Help menu =====
         help_menu = menu_bar.addMenu("Help")
 
         about_action = QAction("About", self)
@@ -490,22 +490,22 @@ class AudioViewer(QMainWindow):
         help_menu.addAction(about_action)
 
     def init_ml_toolbar(self):
-        """初始化 Machine Learning 工具栏：标签选择 + 训练 + 自动标注 + 负样本管理。"""
+        """Initialize the Machine Learning toolbar: label selection + training + auto-labeling + negative sample management."""
 
         toolbar = QToolBar("Machine Learning", self)
         self.addToolBar(Qt.TopToolBarArea, toolbar)
 
-        # ===== 下拉框：选择待训练/自动标注的标签 =====
+        # ===== Combo box: select the label to train/auto-label =====
         self.ml_label_combo = QComboBox(self)
 
-        # 使用内置标签列表的英文名作为 ML 标签选项
+        # Use the English names from the built-in label list as ML label options
         label_en_list = []
         if getattr(self, "annotation_builtin_labels", None):
             label_en_list = [en for (cn, en) in self.annotation_builtin_labels]
             for en in label_en_list:
                 self.ml_label_combo.addItem(en)
 
-        # 初始化 current_ml_label（若已有值且在列表中则沿用，否则取首个）
+        # Initialize current_ml_label (keep the existing value if it is in the list; otherwise use the first)
         if label_en_list:
             if self.current_ml_label in label_en_list:
                 idx = label_en_list.index(self.current_ml_label)
@@ -519,40 +519,40 @@ class AudioViewer(QMainWindow):
         toolbar.addWidget(QLabel("ML Label:"))
         toolbar.addWidget(self.ml_label_combo)
 
-        # ===== 训练按钮 =====
+        # ===== Train button =====
         self.action_train_btn = QAction("Train Model", self)
         self.action_train_btn.setToolTip("Train a frame-level model for the selected label using current manual annotations")
         self.action_train_btn.triggered.connect(self.on_ml_train_clicked)
         toolbar.addAction(self.action_train_btn)
 
-        # ===== 自动标注按钮 =====
+        # ===== Auto-label button =====
         self.action_auto_btn = QAction("Auto-label Unreviewed", self)
         self.action_auto_btn.setToolTip("Use the trained model to auto-label the selected label in unreviewed regions")
         self.action_auto_btn.triggered.connect(self.on_ml_auto_clicked)
         toolbar.addAction(self.action_auto_btn)
 
-        # ===== 清除负样本按钮 =====
+        # ===== Clear negatives button =====
         self.action_clear_neg = QAction("Clear Negatives", self)
         self.action_clear_neg.setToolTip("Remove all hard negative samples for the selected label")
         self.action_clear_neg.triggered.connect(self.on_clear_negatives_clicked)
         toolbar.addAction(self.action_clear_neg)
         self._update_neg_count_tip()
 
-        # ===== 标注颜色图例按钮 =====
+        # ===== Annotation color legend button =====
         action_legend = QAction("Annotation Legend", self)
         action_legend.setToolTip("View the mapping between annotation colors and labels in the third panel")
         action_legend.triggered.connect(self.show_annotation_legend)
         toolbar.addAction(action_legend)
         self.action_annotation_legend = action_legend
 
-    # ===== 工具栏槽函数 =====
+    # ===== Toolbar slot functions =====
     def on_ml_label_changed(self, text):
-        """下拉框标签变化时更新当前 ML 操作目标。"""
+        """Update the current ML operation target when the combo-box label changes."""
         self.current_ml_label = text
         self._update_neg_count_tip()
 
     def on_ml_train_clicked(self):
-        """训练按钮：对当前选中标签训练帧级模型。"""
+        """Train button: train a frame-level model for the currently selected label."""
         label = getattr(self, "current_ml_label", None)
         if not label:
             QMessageBox.information(self, "Machine Learning", "Please select a label in the toolbar first.")
@@ -560,7 +560,7 @@ class AudioViewer(QMainWindow):
         self.train_model_for_label(label)
 
     def on_ml_auto_clicked(self):
-        """自动标注按钮：用已训练模型对当前标签的未审阅区域进行自动标注。"""
+        """Auto-label button: use the trained model to auto-label unreviewed regions for the current label."""
         label = getattr(self, "current_ml_label", None)
         if not label:
             QMessageBox.information(self, "Auto Annotation", "Please select a label in the toolbar first.")
@@ -568,7 +568,7 @@ class AudioViewer(QMainWindow):
         self.apply_model_for_label_on_unreviewed(label)
 
     def on_clear_negatives_clicked(self):
-        """清除当前标签的全部硬负样本。"""
+        """Clear all hard negative samples for the current label."""
         label = getattr(self, "current_ml_label", None)
         if not label:
             QMessageBox.information(self, "Clear Negatives", "Please select a label in the toolbar first.")
@@ -592,7 +592,7 @@ class AudioViewer(QMainWindow):
                                     f"Cleared {cnt} negative sample(s) for label '{label}'.")
 
     def _update_neg_count_tip(self):
-        """更新清除负样本按钮的 tooltip，显示当前标签的负样本数量。"""
+        """Update the Clear Negatives button tooltip to show the current label's negative sample count."""
         label = getattr(self, "current_ml_label", None)
         cnt = self.neg_manager.count(label) if label else 0
         act = getattr(self, "action_clear_neg", None)
@@ -604,10 +604,10 @@ class AudioViewer(QMainWindow):
                 act.setToolTip(f"No hard negative samples for '{label}'")
 
     def show_annotation_legend(self):
-        """根据内置标签和颜色映射生成标注颜色图例。"""
+        """Generate the annotation color legend from built-in labels and color mappings."""
 
         def _color_for_label_direct(label):
-            """优先使用内置颜色映射；大小写不一致时做不区分大小写的回退匹配。"""
+            """Prefer the built-in color mapping; fall back to case-insensitive matching when casing differs."""
             lab = str(label).strip()
             cmap = getattr(self, "annotation_color_builtin", {}) or {}
             if lab in cmap:
@@ -627,7 +627,7 @@ class AudioViewer(QMainWindow):
         legend_items = []
         seen = set()
 
-        # 直接按照代码中的预设标签顺序生成图例，不依赖当前是否已有标注。
+        # Generate the legend directly from the preset label order in the code, without depending on whether annotations currently exist.
         for cn, en in getattr(self, "annotation_builtin_labels", []):
             lab = str(en).strip()
             if not lab or lab.lower() in seen:
@@ -635,7 +635,7 @@ class AudioViewer(QMainWindow):
             seen.add(lab.lower())
             legend_items.append((str(cn), lab, _color_for_label_direct(lab)))
 
-        # 补充当前File中出现过的Custom标签。
+        # Supplement with any Custom labels that appear in the current file.
         try:
             for item in getattr(self, "annotations", []):
                 if item is None or len(item) < 3:
@@ -770,14 +770,14 @@ class AudioViewer(QMainWindow):
         return summarize_preprocessing(cfg)
 
     def load_audio(self, path=None):
-        """加载单个 WAV 文件。
+        """Load a single WAV file.
 
-        设计原则：
-        1) 默认以 4000 Hz 重采样作为分析基础采样率；
-        2) 切换文件时仅完成必要操作：读取音频、绘制抽稀波形、绘制 STFT、导入标签；
-        3) FFT 与短时特征不预先计算，改为切换到对应页面时懒加载以提升切换速度。
+        Design principles:
+        1) Resample to 4000 Hz by default as the analysis base sample rate;
+        2) When switching files, perform only essential operations: read audio, draw decimated waveform, draw STFT, import labels;
+        3) FFT and short-time features are not pre-computed; they are lazy-loaded when switching to the corresponding page to improve switching speed.
         """
-        # 0. 切换文件前停止当前播放，避免旧音频仍占用声卡。
+        # 0. 0. Stop playback before switching files to prevent the old audio from still occupying the sound card.
         try:
             _get_sd().stop()
             self.timer.stop()
@@ -787,7 +787,7 @@ class AudioViewer(QMainWindow):
         except Exception:
             pass
 
-        # 1. 手动导入路径为空时，弹出File选择框
+        # 1. If no path is provided, show the file selection dialog
         if not path:
             selected, _ = QFileDialog.getOpenFileName(
                 self, "Select WAV File", "", "WAV Files (*.wav)"
@@ -796,7 +796,7 @@ class AudioViewer(QMainWindow):
                 return
             path = selected
 
-        # 2. 建立同目录 WAV 列表，用于上一首/下一首。
+        # 2. 2. Build a WAV-file list from the same directory for previous/next navigation.
         try:
             path = os.path.abspath(path)
             folder = os.path.dirname(path)
@@ -816,7 +816,7 @@ class AudioViewer(QMainWindow):
             QMessageBox.critical(self, "Folder Error", f"Failed to get audio files from the same folder:\n{str(e)}")
             return
 
-        # 3. 读取音频。默认使用 Settings 中的重采样采样率；关闭重采样时保留原始采样率。
+        # 3. 3. Read the audio. Use the resample rate from Settings by default; preserve the original sample rate when resampling is disabled.
         try:
             self.statusBar().showMessage("Loading audio...", 0)
             QApplication.processEvents()
@@ -848,7 +848,7 @@ class AudioViewer(QMainWindow):
             self.statusBar().clearMessage()
             return
 
-        # 4. 切换文件时，先清空旧缓存和旧标注，避免旧图/旧特征误用。
+        # 4. 4. When switching files, clear old caches and old annotations first to avoid reusing stale plots/features.
         self.stft_frame_times = None
         self.stft_features = None
         self.stft_feature_names = None
@@ -856,7 +856,7 @@ class AudioViewer(QMainWindow):
         self.fft_dirty = True
         self.feature_curves = {}
         self._last_spec_vals = None
-        # 新音频默认重置自动色阶，避免上一条文件的色阶影响当前文件。
+        # Reset auto-levels so the previous file does not affect the current one.
         self.stft_vmin = None
         self.stft_vmax = None
 
@@ -879,10 +879,10 @@ class AudioViewer(QMainWindow):
 
         self.wave_y_range = (float(np.min(self.audio)), float(np.max(self.audio)))
 
-        # 先清旧标注，再重绘新图，防止旧 STFT 高亮残留。
+        # Clear old annotations first, then redraw new plots to prevent residual old STFT highlights.
         self.clear_annotations()
 
-        # 5. 只做必要显示：抽稀波形 + STFT。FFT/特征延后到用户切换页面时计算。
+        # 5. 5. Show only essentials: decimated waveform + STFT. FFT and features are deferred until the user switches pages.
         try:
             self.statusBar().showMessage("Drawing waveform...", 0)
             QApplication.processEvents()
@@ -897,14 +897,14 @@ class AudioViewer(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Spectrogram Warning", f"Failed to update spectrogram:\n{str(e)}")
 
-        # 6. 自动导入标签。标签导入很轻，仍保留在 load_audio 里。
+        # 6. 6. Auto-import labels. Label import is lightweight, so it stays inside load_audio.
         try:
             if getattr(self, "auto_import_events_enabled", False):
                 self._auto_import_events_for_wav(path)
         except Exception:
             pass
 
-        # 7. 坐标范围与页面状态。
+        # 7. 7. Coordinate ranges and page state.
         try:
             fmax_eff = min(float(getattr(self, "f_max", 2000)), float(self.sr) / 2.0)
         except Exception:
@@ -944,7 +944,7 @@ class AudioViewer(QMainWindow):
         )
         f_max = float(freqs[-1]) if len(freqs) else float(min(self.f_max, self.sr / 2.0))
 
-        # 保存完整谱值用于 Settings 直方图；显示用谱图可以抽稀。
+        # Save full spectrogram values for the Settings histogram; the display spectrogram may be decimated.
         self._last_spec_vals = spec.copy()
         spec_disp = self._decimate_spec_for_display(spec)
 
@@ -953,7 +953,7 @@ class AudioViewer(QMainWindow):
 
         self.spec_img.resetTransform()
         self.spec_img.setImage(rgb, autoLevels=False)
-        # 抽稀后的图像仍映射到完整音频时长，保证标注时间轴一致。
+        # The decimated image still maps to the full audio duration, ensuring consistent annotation time axes.
         self.spec_img.setRect(pg.QtCore.QRectF(0, 0, float(self.duration), float(f_max)))
 
         self.spec_stft_plot.setLabel('bottom', 'Time', units='s')
@@ -965,7 +965,7 @@ class AudioViewer(QMainWindow):
         self.wave_plot.setXRange(0, self.duration, padding=0)
         self.annot_plot.setXRange(0, self.duration, padding=0)
 
-        # STFT/FMAX 变化会影响频域特征，但不在 STFT 刷新时立即计算特征。
+        # Changes to STFT/f_max affect frequency-domain features, but features are not recomputed immediately during STFT refresh.
         self.features_dirty = True
         self.fft_dirty = True
 
@@ -1010,16 +1010,16 @@ class AudioViewer(QMainWindow):
             self.wave_plot.setYRange(float(np.min(y)), float(np.max(y)))
 
     def clear_annotations(self):
-        """清空所有标注：移除可视化对象、清空数据结构、复位视图范围。"""
-        # 1) 移除可视化对象 —— BoxSpan 及其上方文字标签
+        """Clear all annotations: remove visual objects, clear data structures, reset view ranges."""
+        # 1) 1) Remove visual objects -- BoxSpan instances and their text labels
         for sp in list(self._spans):
             try:
-                sp.cleanup()  # 从 annot_plot 移除自身及文字标签
+                sp.cleanup()  # Remove itself and its text label from annot_plot
             except:
                 pass
         self._spans.clear()
 
-        # 2) 移除 STFT 频谱图上的高亮区域
+        # 2) 2) Remove highlight regions from the STFT spectrogram
         for reg in list(self._span2spec.values()):
             try:
                 self.spec_stft_plot.removeItem(reg)
@@ -1028,7 +1028,7 @@ class AudioViewer(QMainWindow):
         self._span2spec.clear()
         self._span2idx.clear()
 
-        # 3) 兼容旧格式：清除 annotation_items 中保存的区域和文字
+        # 3) 3) Backward compatibility: clear regions and text stored in annotation_items
         for item, label in list(self.annotation_items):
             try:
                 self.annot_plot.removeItem(item)
@@ -1041,7 +1041,7 @@ class AudioViewer(QMainWindow):
                     pass
         self.annotation_items.clear()
 
-        # 4) 清除拖拽过程中的临时选区
+        # 4) 4) Clear temporary selection regions from an in-progress drag
         if getattr(self, "temp_region", None):
             try:
                 self.annot_plot.removeItem(self.temp_region)
@@ -1049,7 +1049,7 @@ class AudioViewer(QMainWindow):
                 pass
             self.temp_region = None
 
-        # 5) 清空数据结构
+        # 5) 5) Clear data structures
         self.annotations.clear()
         try:
             self.neg_manager.clear_all()
@@ -1062,13 +1062,13 @@ class AudioViewer(QMainWindow):
             self._undo_stack = []
         self._lanes = [[] for _ in range(self.MAX_LANES)]
 
-        # 6) 复位标注视图范围
+        # 6) 6) Reset the annotation view range
         H = self.MAX_LANES * (self.LANE_H + self.LANE_GAP)
         self.annot_plot.setYRange(0, H)
         self.annot_plot.setLimits(yMin=0, yMax=H, xMin=0, xMax=self.duration)
         self.annot_plot.setXRange(0, self.duration)
 
-        # 7) 取消波形高亮
+        # 7) 7) Cancel waveform highlight
         self.plot_waveform_highlight(None, None)
 
     def play_pause(self):
@@ -1123,7 +1123,7 @@ class AudioViewer(QMainWindow):
             self.timer.start()
 
     def _seek_delta(self, delta_sec):
-        """快退/快进 delta_sec 秒（供 Left/Right 快捷键调用）。"""
+        """Seek backward/forward by delta_sec seconds (called by the Left/Right shortcut keys)."""
         if self.audio is None or self.duration <= 0:
             return
         pos = self.slider.value() / 1000.0 + delta_sec
@@ -1169,7 +1169,7 @@ class AudioViewer(QMainWindow):
             wave_y_range=self.wave_y_range,
             audio_data=self.audio,
             selected_features=getattr(self, "selected_features", None),
-            # ↓↓↓ 新增：把 STFT 相关Display数据传进去
+            # New: pass STFT-related display data in
             stft_last_spec=self._last_spec_vals,
             stft_cmap=self.stft_cmap,
             stft_levels=(self.stft_vmin, self.stft_vmax),
@@ -1187,14 +1187,14 @@ class AudioViewer(QMainWindow):
             auto_label_import_settings=getattr(self, "auto_label_import_settings", None),
         )
 
-        dlg.set_current_tab(self.last_settings_tab_index)  # 💡 Settings上次使用的标签页
+        dlg.set_current_tab(self.last_settings_tab_index)  # 💡 Last-used Settings tab
 
         if dlg.exec_():
             self.n_fft, self.hop_length, self.f_max, self.wave_y_range = dlg.get_values()
-            self.selected_features = dlg.get_selected_features()  # 新增
+            self.selected_features = dlg.get_selected_features()  # New
             self.last_settings_tab_index = dlg.tabs.currentIndex()
 
-            # 新增：保存"读取时预处理"和"自动标签读取参数"。不立即重读当前音频，避免影响现有编辑状态；下次 load_audio 生效。
+            # New: save "load-time preprocessing" and "auto label import" parameters. Do not immediately reload the current audio to avoid disrupting the current editing state; takes effect on the next load_audio call.
             try:
                 pp = dlg.get_preprocessing_settings()
                 self.preprocessing_enabled = bool(pp.get("preprocessing_enabled", True))
@@ -1230,7 +1230,7 @@ class AudioViewer(QMainWindow):
             except Exception:
                 pass
 
-            # 取回 STFT DisplaySettings (配色 + 上下限)，先保存再重绘，避免使用旧色阶。
+            # Retrieve STFT Display settings (color scheme + bounds); save before redrawing to avoid using old color levels.
             try:
                 cmap, vmin, vmax = dlg.get_stft_display_settings()
                 self.stft_cmap = cmap
@@ -1240,13 +1240,13 @@ class AudioViewer(QMainWindow):
                 pass
 
             if self.audio is not None:
-                # Settings 改变后只刷新波形/STFT，并标记 FFT/特征失效；不立即计算短时特征。
+                # After Settings changes, only refresh the waveform/STFT and mark FFT/features as dirty; do not recompute short-time features immediately.
                 self.draw_waveform()
                 self.update_spectrogram()
                 self.features_dirty = True
                 self.fft_dirty = True
 
-            # 若只改了色阶而未重算，也可以直接按当前谱图重着色。
+            # If only the color levels were changed without recomputing, simply recolor the current spectrogram in-place.
             if self._last_spec_vals is not None:
                 spec_disp = self._decimate_spec_for_display(self._last_spec_vals)
                 disp = spec_disp.T
@@ -1254,10 +1254,11 @@ class AudioViewer(QMainWindow):
                 self.spec_img.setImage(rgb, autoLevels=False)
 
     def _update_default_export_annotation_name(self, wav_path=None):
-        """根据当前 WAV 实时更新默认导出File名。
+        """Update the default export filename in real time based on the current WAV file.
 
-        只更新File名，不决定目录。目录在导出时优先沿用上一次Export Annotations的目录。
-        命名规则：<当前wavFile名不含扩展名>_events.csv
+        Only the filename is updated; the directory is not determined here.
+        On export, the directory defaults to the last export directory.
+        Naming convention: <current_wav_basename_without_extension>_events.csv
         """
         try:
             if wav_path is None:
@@ -1272,7 +1273,7 @@ class AudioViewer(QMainWindow):
         return self.default_export_annotation_name
 
     def _get_default_export_annotation_path(self):
-        """生成导出对话框默认路径：目录跟随上次导出，File名跟随当前 WAV。"""
+        """Generate the default path for the export dialog: directory follows the last export, filename follows the current WAV."""
         default_name = self._update_default_export_annotation_name(
             getattr(self, "loaded_filename", None)
         )
@@ -1299,8 +1300,8 @@ class AudioViewer(QMainWindow):
         return os.path.join(default_dir, default_name)
 
     def export_annotations(self):
-        """导出标注数据到 CSV 文件。"""
-        # 过滤 None 项，兼容 3/4 元组格式；排除 source='archived'（已归档/隐藏）的标注
+        """Export annotation data to a CSV file."""
+        # Filter out None entries; support 3-/4-tuple formats; exclude annotations whose source is 'archived' (archived/hidden)
         rows = []
         for item in getattr(self, "annotations", []):
             if item is None:
@@ -1317,8 +1318,8 @@ class AudioViewer(QMainWindow):
             QMessageBox.information(self, "Notice", "There are no annotations to export.")
             return
 
-        # 默认路径：目录沿用上次导出位置，文件名跟随当前 WAV
-        # 例如：当前音频 1008.wav → 默认文件名 1008_events.csv
+        # Default path: directory reuses the last export location; filename follows the current WAV
+        # Example: current audio 1008.wav -> default filename 1008_events.csv
         default_path = self._get_default_export_annotation_path()
 
         path, _ = QFileDialog.getSaveFileName(
@@ -1341,7 +1342,7 @@ class AudioViewer(QMainWindow):
 
             write_annotations(path, ann_dicts)
 
-            # === 验证：打印导出 source 分布统计（可在控制台查看）===
+            # === Verification: print exported source-distribution statistics (viewable in the console)===
             try:
                 mem_src = {}
                 for d in ann_dicts:
@@ -1351,7 +1352,7 @@ class AudioViewer(QMainWindow):
                 print("[VERIFY][EXPORT] source check failed:", _e)
 
             QMessageBox.information(self, "Export Successful", f"Annotations have been saved to:\n{path}")
-            self.last_export_path = path  # 记住路径
+            self.last_export_path = path  # Remember the path
         except Exception as e:
             QMessageBox.warning(self, "Export Failed", str(e))
 
@@ -1375,13 +1376,14 @@ class AudioViewer(QMainWindow):
             self.delete_annotation(region, start, end)
 
     def delete_annotation(self, target, *args, record_negative=True, push_undo=True):
-        """删除一个标注。
+        """Delete an annotation.
 
-        - 交互式删除 BoxSpan 时：默认将该段加入 neg_segments（仅用于训练的硬负样本），
-          且支持 Ctrl+Z 撤销。
-        - 程序内部清理（如清除 ML 预测结果）可传 record_negative=False, push_undo=False。
+        - When interactively deleting a BoxSpan: by default add the segment to neg_segments
+          (hard negative samples for training only), and support Ctrl+Z undo.
+        - Internal cleanup (e.g. clearing ML predictions) can pass record_negative=False,
+          push_undo=False.
         """
-        # 删除 BoxSpan 对象
+        # Remove the BoxSpan object
         if isinstance(target, BoxSpan):
             sp = target
 
@@ -1396,7 +1398,7 @@ class AudioViewer(QMainWindow):
                 idx = None
                 old_item = None
 
-            # 记录硬负样本（按被删除标注的原始标签，而非当前训练类型）
+            # Record a hard negative sample (using the deleted annotation's original label, not the current training label)
             neg_item = None
             if record_negative and old_item is not None:
                 try:
@@ -1405,7 +1407,7 @@ class AudioViewer(QMainWindow):
                 except Exception:
                     neg_item = None
 
-            # 移除 UI 组件
+            # Remove UI components
             if sp in self._span2spec:
                 try:
                     self.spec_stft_plot.removeItem(self._span2spec[sp])
@@ -1431,7 +1433,7 @@ class AudioViewer(QMainWindow):
                 except Exception:
                     pass
 
-            # 记录撤销信息
+            # Record undo information
             if push_undo and old_item is not None and idx is not None:
                 self._push_undo({
                     "op": "delete",
@@ -1441,14 +1443,14 @@ class AudioViewer(QMainWindow):
                 })
             return
 
-        # 兼容：旧 LinearRegionItem 删除路径 (如果你代码中还有)
-        # 若传入的是 STFT 高亮区域 (LinearRegionItem)，尝试反查对应的 BoxSpan，
-        # 统一走 BoxSpan 删除逻辑，以便支持硬负样本与 Ctrl+Z 撤销。
+        # Backward compatibility: old LinearRegionItem deletion path (if still present in your code)
+        # If the input is an STFT highlight region (LinearRegionItem), attempt to reverse-lookup the corresponding BoxSpan,
+        # and route through the unified BoxSpan deletion logic to support hard-negative samples and Ctrl+Z undo.
         region_item = target
         try:
             for _sp, _reg in list(getattr(self, "_span2spec", {}).items()):
                 if _reg is region_item:
-                    # 复用 BoxSpan 删除逻辑
+                    # Reuse the BoxSpan deletion logic
                     return self.delete_annotation(_sp, record_negative=record_negative, push_undo=push_undo)
         except Exception:
             pass
@@ -1487,8 +1489,8 @@ class AudioViewer(QMainWindow):
         return None
 
     def _restore_span_from_annotation(self, idx: int, item):
-        """根据 annotations[idx] 重建 BoxSpan 可视化（仅供撤销使用），不修改 annotations。"""
-        # 若已经有同 idx 的 span (理论上不该发生)，直接返回避免重复
+        """Rebuild the BoxSpan visualization from annotations[idx] (for undo only); does not modify annotations."""
+        # If a span with the same index already exists (should not happen in theory), return immediately to prevent duplication
         try:
             if self._find_span_by_idx(int(idx)) is not None:
                 return
@@ -1513,16 +1515,16 @@ class AudioViewer(QMainWindow):
 
 
     def _render_annotation_span(self, start, end, text, source, idx=None):
-        """创建并渲染一个标注的 BoxSpan + STFT 高亮区域。
+        """Create and render a BoxSpan plus STFT highlight region for an annotation.
 
-        被 ``finalize_annotation`` 和 ``_restore_span_from_annotation``
-        共用，消除重复的分轨/颜色/笔刷/高亮逻辑。
+        Shared by ``finalize_annotation`` and ``_restore_span_from_annotation``,
+        eliminating duplicated lane-assignment / color / pen / highlight logic.
         """
-        # 分轨
+        # Lane assignment
         lane = self._pick_lane(start, end)
         y0 = lane * (self.LANE_H + self.LANE_GAP)
 
-        # 颜色与笔刷
+        # Color and pen
         color = self.get_annotation_color(text)
         try:
             pen = pg.mkPen(color, width=1)
@@ -1533,7 +1535,7 @@ class AudioViewer(QMainWindow):
             pen = pg.mkPen(255, 255, 255, 255, width=1)
             brush = pg.mkBrush(255, 255, 255, 255)
 
-        # 非 manual source 使用红色文字
+        # Non-manual source annotations use red text
         label_color = None if source == "manual" else QColor(255, 0, 0)
 
         # BoxSpan
@@ -1549,7 +1551,7 @@ class AudioViewer(QMainWindow):
         if idx is not None:
             self._span2idx[sp] = int(idx)
 
-        # STFT 高亮
+        # STFT highlight
         try:
             spec_color = QColor(color)
             spec_color.setAlpha(50)
@@ -1568,17 +1570,17 @@ class AudioViewer(QMainWindow):
         return sp
 
     def _clear_annotation_view_only(self):
-        """仅清空可视化对象（BoxSpan、STFT 高亮等），不清空 annotations/neg/undo 等数据。
+        """Clear only visual objects (BoxSpan, STFT highlights, etc.); do not clear annotations/neg/undo data.
 
-        用于视图与数据不同步时的重建兜底。
+        Used as a rebuild fallback when the view and data are out of sync.
         """
-        # 1) BoxSpan 及其文字标签
+        # 1) 1) BoxSpan instances and their text labels
         try:
             for sp in list(getattr(self, "_spans", [])):
                 try:
                     sp.cleanup()
                 except Exception:
-                    # 兜底：至少从图中移除
+                    # Fallback: at least remove it from the plot
                     try:
                         self.annot_plot.removeItem(sp)
                     except Exception:
@@ -1587,7 +1589,7 @@ class AudioViewer(QMainWindow):
         except Exception:
             pass
 
-        # 2) STFT 高亮区域
+        # 2) STFT highlight regions
         try:
             for reg in list(getattr(self, "_span2spec", {}).values()):
                 try:
@@ -1598,13 +1600,13 @@ class AudioViewer(QMainWindow):
         except Exception:
             pass
 
-        # 3) 索引映射
+        # 3) Index mapping
         try:
             getattr(self, "_span2idx", {}).clear()
         except Exception:
             pass
 
-        # 4) 兼容旧格式残留
+        # 4) Backward compatibility with legacy format remnants
         try:
             for item, label in list(getattr(self, "annotation_items", [])):
                 try:
@@ -1620,7 +1622,7 @@ class AudioViewer(QMainWindow):
         except Exception:
             pass
 
-        # 5) 临时拖拽选区
+        # 5) 5) Temporary drag-selection region
         if getattr(self, "temp_region", None) is not None:
             try:
                 self.annot_plot.removeItem(self.temp_region)
@@ -1628,18 +1630,18 @@ class AudioViewer(QMainWindow):
                 pass
             self.temp_region = None
 
-        # 6) 重置轨道缓存（不影响数据）
+        # 6) Reset lane cache (does not affect data)
         try:
             self._lanes = [[] for _ in range(self.MAX_LANES)]
         except Exception:
             pass
 
     def rebuild_annotation_view_from_data(self):
-        """从 self.annotations 重新渲染所有 BoxSpan（不改动 annotations 数据）。"""
-        # 清空视图
+        """Rebuild all BoxSpan visualizations from self.annotations (does not modify annotation data)."""
+        # Clear the view
         self._clear_annotation_view_only()
 
-        # 复位 Y 轴显示范围（避免渲染后不可见）
+        # Reset the Y-axis display range (to avoid invisibility after rendering)
         try:
             H = self.MAX_LANES * (self.LANE_H + self.LANE_GAP)
             self.annot_plot.setYRange(0, H)
@@ -1647,25 +1649,25 @@ class AudioViewer(QMainWindow):
         except Exception:
             pass
 
-        # 重建
+        # Rebuild
         try:
             for idx, item in enumerate(list(getattr(self, "annotations", []))):
                 if item is None:
                     continue
                 try:
-                    # archived 不Display也不导出 (合并/删除前的旧 span)
+                    # archived spans are neither displayed nor exported (old spans before merge/delete)
                     if len(item) >= 4 and str(item[3]) == "archived":
                         continue
                 except Exception:
                     pass
                 self._restore_span_from_annotation(int(idx), item)
         except Exception:
-            # 避免异常中断主流程
+            # Avoid interrupting the main flow with exceptions
             pass
 
 
     def set_annotation_source(self, target, new_source: str, push_undo=True):
-        """将指定标注的 source 修改为 new_source 并同步 UI，支持撤销。"""
+        """Change the source of a specified annotation to new_source, sync the UI, and support undo."""
         idx = None
         if isinstance(target, BoxSpan):
             try:
@@ -1707,7 +1709,7 @@ class AudioViewer(QMainWindow):
 
     # ---- undo dispatcher -------------------------------------------------
     def undo_last_action(self):
-        """撤销最后一次编辑操作（删除、改 source、编辑几何位置）。"""
+        """Undo the last edit operation (delete, source change, geometry edit)."""
         try:
             if not self._undo_stack:
                 return
@@ -1724,7 +1726,7 @@ class AudioViewer(QMainWindow):
             self._undo_set_source(rec)
 
     def _undo_delete(self, rec):
-        """撤销一次删除：恢复 annotations 条目 + 重建可视化 + 移除负样本。"""
+        """Undo a single deletion: restore the annotations entry + rebuild visualization + remove the negative sample."""
         idx = rec.get("idx")
         item = rec.get("item")
         neg_item = rec.get("neg_item")
@@ -1734,7 +1736,7 @@ class AudioViewer(QMainWindow):
             if 0 <= int(idx) < len(self.annotations):
                 self.annotations[int(idx)] = item
                 self._restore_span_from_annotation(int(idx), item)
-                # 兜底：恢复失败则重建整个视图
+                # Fallback: if restoration fails, rebuild the entire view
                 try:
                     if self._find_span_by_idx(int(idx)) is None:
                         self.rebuild_annotation_view_from_data()
@@ -1751,7 +1753,7 @@ class AudioViewer(QMainWindow):
                 pass
 
     def _undo_edit_interval(self, rec):
-        """撤销一次几何编辑：回滚位置、文本、样式和高亮。"""
+        """Undo a single geometry edit: roll back position, text, style, and highlight."""
         idx = rec.get("idx")
         old_item = rec.get("old_item")
         if idx is None or old_item is None:
@@ -1773,7 +1775,7 @@ class AudioViewer(QMainWindow):
             sp = None
 
         if sp is None:
-            # span 丢失则重建整个视图
+            # If the span is lost, rebuild the entire view
             try:
                 self.rebuild_annotation_view_from_data()
             except Exception:
@@ -1797,7 +1799,7 @@ class AudioViewer(QMainWindow):
             except Exception:
                 pass
 
-            # STFT 高亮同步
+            # Sync STFT highlight
             try:
                 reg = getattr(self, "_span2spec", {}).get(sp)
                 if reg is not None:
@@ -1810,14 +1812,14 @@ class AudioViewer(QMainWindow):
             except Exception:
                 pass
         except Exception:
-            # 兜底：回滚失败则重建视图
+            # Fallback: if rollback fails, rebuild the view
             try:
                 self.rebuild_annotation_view_from_data()
             except Exception:
                 pass
 
     def _undo_set_source(self, rec):
-        """撤销 source 变更：恢复旧 source 并重绘视觉样式。"""
+        """Undo a source change: restore the old source and redraw the visual style."""
         idx = rec.get("idx")
         old_item = rec.get("old_item")
         if idx is None or old_item is None:
@@ -1836,14 +1838,14 @@ class AudioViewer(QMainWindow):
             pass
 
     def accept_annotation(self, target, accepted_source: str = "auto_accepted"):
-        """将机器标注标记为「已认可」，默认 source=auto_accepted，支持撤销。"""
+        """Mark a machine annotation as accepted; default source=auto_accepted; undoable."""
         return self.set_annotation_source(target, accepted_source, push_undo=True)
 
     # ==========================
-    # BoxSpan 编辑模式：双击进入；Enter 提交；Esc 取消
+    # BoxSpan edit mode: double-click to enter; Enter to commit; Esc to cancel
     # ==========================
     def begin_edit_span(self, span):
-        """记录当前进入编辑态的 BoxSpan（若已有其他 span 在编辑则先提交退出）。"""
+        """Record the BoxSpan currently entering edit mode (if another span is already in edit mode, commit and exit it first)."""
         try:
             cur = getattr(self, "_editing_span", None)
             if cur is not None and cur is not span:
@@ -1861,21 +1863,21 @@ class AudioViewer(QMainWindow):
             pass
 
     def end_edit_span(self, span):
-        """退出编辑模式并清空编辑状态。"""
+        """Exit edit mode and clear the editing state."""
         try:
             if getattr(self, "_editing_span", None) is span:
                 self._editing_span = None
         except Exception:
             self._editing_span = None
 
-        # Exit编辑后清理状态栏Notice
+        # Clean the status bar notice after exiting edit mode
         try:
             self.statusBar().showMessage("", 1000)
         except Exception:
             pass
 
     def _update_edit_status(self, span):
-        """编辑态：在状态栏显示当前选中 span 的起止时间。"""
+        """Edit mode: display the start and end times of the currently selected span in the status bar."""
         try:
             s0, s1 = span.interval()
             dur = float(s1) - float(s0)
@@ -1902,21 +1904,21 @@ class AudioViewer(QMainWindow):
             QMessageBox.information(self, "Notice", "This is already the last file.")
 
     def get_annotation_color(self, label_text):
-        """根据标签文本返回稳定的颜色：内置标签使用固定颜色，自定义标签使用自动配色。"""
+        """Return a stable color for a label text: built-in labels use fixed colors; custom labels use auto-assigned colors."""
         if not label_text:
             return QColor(255, 255, 255)
 
-        # 已有映射直接返回
+        # Return directly if already mapped
         if label_text in self.annotation_color_map:
             return self.annotation_color_map[label_text]
 
-        # 预设类型 (英文名)
+        # Preset type (English name)
         if label_text in self.annotation_color_builtin:
             color = self.annotation_color_builtin[label_text]
             self.annotation_color_map[label_text] = color
             return color
 
-        # 其他任意文本：从调色板顺序取色
+        # Any other text: pick a color sequentially from the palette
         palette = self.annotation_color_palette
         idx = self._annotation_color_used % len(palette)
         color = palette[idx]
@@ -1925,7 +1927,7 @@ class AudioViewer(QMainWindow):
         return color
 
     def finalize_annotation(self, start, end, text=None, source="manual"):
-        # 若未提供文本 (正常交互标注)，则弹出带预设类型的对话框
+        # If no text is provided (normal interactive annotation), show the dialog with preset types
         if text is None:
             dlg = AnnotationLabelDialog(
                 parent=self,
@@ -1937,12 +1939,12 @@ class AudioViewer(QMainWindow):
             if not text:
                 return
 
-        # —— 渲染标注可视化 + 频谱高亮 ——
+        # —— Render annotation visualization + spectrogram highlight ——
         span = self._render_annotation_span(start, end, text, source)
         if span is None:
             return
 
-        # —— 注册到 annotations 数据 ——
+        # —— Register into the annotations data store ——
         if not hasattr(self, "annotations"):
             self.annotations = []
         self.annotations.append((float(start), float(end), str(text), str(source)))
@@ -1987,7 +1989,7 @@ class AudioViewer(QMainWindow):
 
 
     # =========================
-    # 自动导入同名 _events 标注 (可开关)
+    # Auto-import matching _events annotations (toggleable)
     # =========================
 
     def _get_events_indexer(self):
@@ -2062,13 +2064,13 @@ class AudioViewer(QMainWindow):
     def toggle_analysis_mode(self):
         cur = self.spec_stack.currentWidget()
         if cur is self.spec_stft_plot:
-            # STFT → FFT：触发懒加载
+            # STFT -> FFT: trigger lazy loading
             self.spec_stack.setCurrentWidget(self.spec_fft_plot)
             self.freq_button.setText("Switch: Short-Time Features")
             if getattr(self, "fft_dirty", True):
                 self.show_fft()
         elif cur is self.spec_fft_plot:
-            # FFT -> Short-Time Features：懒加载短时特征
+            # FFT -> Short-Time Features：lazy-load short-time features
             self.spec_stack.setCurrentWidget(self.feat_page)
             self.freq_button.setText("Switch: STFT")
             if getattr(self, "features_dirty", True) or not getattr(self, "feature_curves", {}):
@@ -2121,14 +2123,14 @@ class AudioViewer(QMainWindow):
         vb.setLimits(xMin=0, xMax=self.sr / 2, yMin=0, yMax=np.max(spectrum) * 2)
 
     def _overlap(self, a1, a2, b1, b2):
-        # 只要有时间交集即视为重叠
+        # Any temporal intersection is considered overlap
         return not (a2 <= b1 or a1 >= b2)
 
     def _pick_lane(self, s, e):
-        """根据当前可见 BoxSpan 动态选择空闲轨道；优先使用编号最小的空轨。"""
+        """Dynamically select a free lane based on the currently visible BoxSpan instances; prefer the lane with the smallest index."""
         lanes = [[] for _ in range(self.MAX_LANES)]
         gap = (self.LANE_H + self.LANE_GAP)
-        # 收集现有每一行的区间
+        # Collect the intervals of every existing lane
         for sp in list(self._spans):
             try:
                 a, b = sp.interval()
@@ -2137,21 +2139,21 @@ class AudioViewer(QMainWindow):
                     lanes[lane].append((a, b))
             except Exception:
                 pass
-        # 找第一个不重叠的行
+        # Find the first non-overlapping lane
         for i in range(self.MAX_LANES):
             if all(not self._overlap(s, e, a, b) for (a, b) in lanes[i]):
                 return i
-        # 三行都冲突，则放最后一行
+        # If all three lanes conflict, place it in the last lane
         return self.MAX_LANES - 1
 
     def _on_stft_mouse_move_title(self, evt):
-        """鼠标在 STFT 图上移动时显示 t/f 坐标；移出绘图区域则还原标题。"""
+        """Display time/frequency coordinates when the mouse moves over the STFT plot; restore the title when the mouse leaves the plotting area."""
         if self.audio is None:
             return
         pos = evt[0] if isinstance(evt, (tuple, list)) else evt
 
         vb = self.spec_stft_plot.getViewBox()
-        # 仅在绘图区内触发 (不包含轴刻度/边距)
+        # Trigger only inside the plotting area (excluding axis ticks/margins)
         if not vb.sceneBoundingRect().contains(pos):
             self.spec_stft_plot.setTitle(self.spec_title_base)
             return
@@ -2163,7 +2165,7 @@ class AudioViewer(QMainWindow):
         dur = getattr(self, "duration", 0.0)
 
         if 0.0 <= x <= (dur or 0.0) and 0.0 <= y <= (fmax or 0.0):
-            # 标题右侧Display坐标 (可调样式)
+            # Right side of titleDisplayCoordinate (adjustablestyle)
             self.spec_stft_plot.setTitle(
                 f'{self.spec_title_base}  '
                 f'<span style="color:#bbb; font-size:11px;">t={x:.3f}s, f={y:.1f} Hz</span>'
@@ -2209,10 +2211,10 @@ class AudioViewer(QMainWindow):
         self.stft_features = X_full  # (T, 2D)
         self.stft_feature_names = full_names
     def update_features_plot(self):
-        """根据 self.selected_features 计算并绘制短时特征曲线（0-1 归一化叠加显示）。
+        """Compute and plot short-time feature curves based on self.selected_features (0-1 normalized, overlaid display).
 
-        说明：该函数在主线程计算，仅在切换到特征页时懒加载；
-        load_audio / 上一首 / 下一首不主动调用。
+        Note: this function computes on the main thread and is only lazy-loaded when switching to
+        the features page; it is not called proactively during load_audio / previous / next.
         """
         self.feat_plot.clear()
         self.feat_plot.addLegend()
@@ -2227,18 +2229,18 @@ class AudioViewer(QMainWindow):
         if times.size == 0 or not feat:
             return
 
-        # 画最多 5 items
+        # Plot at most 5 items
         from respanno.dsp.features import normalize_feature_for_display
 
         names = [nm for nm in self.selected_features if nm in feat][:5]
-        self._assign_feature_colors(names)  # 选择颜色
+        self._assign_feature_colors(names)  # Assign colors
         for nm in names:
             y_plot = normalize_feature_for_display(np.asarray(feat[nm], dtype=float))
             color = self.feature_color_map.get(nm, QColor("#999999"))
             curve = self.feat_plot.plot(times, y_plot, name=nm, pen=pg.mkPen(color, width=2))
             self.feature_curves[nm] = curve
 
-        # Time轴范围与 STFT 对齐
+        # Align the time-axis range with STFT
         self.feat_plot.setLimits(xMin=0, xMax=self.duration)
         self.feat_plot.setXRange(0, self.duration, padding=0)
         self.features_dirty = False
@@ -2262,16 +2264,16 @@ class AudioViewer(QMainWindow):
         )
 
     def _on_cmap_changed(self, text: str):
-        """切换配色方案：不重新计算 STFT，仅对显示用谱图重着色。"""
+        """Switch the color scheme: do not recompute the STFT; only recolor the display spectrogram."""
         self.stft_cmap = text
         if self._last_spec_vals is not None and hasattr(self, "spec_img"):
             spec_disp = self._decimate_spec_for_display(self._last_spec_vals)
-            disp = spec_disp.T  # 与主图方向一致：time × freq
+            disp = spec_disp.T  # Match the main plot orientation: time x freq
             rgb = self._colorize_spec_with_window(disp)
             self.spec_img.setImage(rgb, autoLevels=False)
 
     def _assign_feature_colors(self, selected_names):
-        """按 selected_names 顺序为每条特征曲线分配不重复的颜色。"""
+        """Assign a unique color to each feature curve in the order of selected_names."""
         self.feature_color_map = {}
         used = 0
         for name in selected_names[:5]:
@@ -2280,13 +2282,13 @@ class AudioViewer(QMainWindow):
 
     def _iter_manual_annotations(self):
         """
-        统一遍历「可用于训练 / 已审阅」的标注区间：
-        - 兼容 (start, end, label) 和 (start, end, label, source) 两种格式
-        - 三元组一律视为人工标注（source='manual'）
-        - 四元组根据 source 是否属于「已审阅集合」判定
+        Unified iteration over "trainable / reviewed" annotation intervals:
+        - Compatible with both (start, end, label) and (start, end, label, source) formats
+        - 3-tuples are always treated as manual annotations (source='manual')
+        - 4-tuples are judged based on whether source belongs to the "reviewed set"
 
-        说明：为兼容旧代码保留函数名 _iter_manual_annotations，
-        但其语义已升级为「reviewed annotations」。
+        Note: the function name _iter_manual_annotations is retained for backward
+        compatibility, but its semantics have been upgraded to "reviewed annotations".
         """
 
         def _norm_src(x):
@@ -2295,8 +2297,8 @@ class AudioViewer(QMainWindow):
             except Exception:
                 return ""
 
-        # 先搭"source 状态机"的基础：后续会逐步引入更多状态。
-        # reviewed: 参与"已审阅前缀"统计；trainable: 可进入下一轮训练的正样本标注。
+        # Lay the foundation for the "source state machine": more states will be introduced gradually in the future.
+        # reviewed: participates in the "reviewed prefix" statistic; trainable: a positive-sample annotation eligible for the next training round.
         reviewed_sources = {
             "manual",
             "auto_accepted",
@@ -2308,13 +2310,13 @@ class AudioViewer(QMainWindow):
             if item is None:
                 continue
 
-            # 兼容三元组 / 四元组格式，其他长度直接跳过
+            # Support 3-tuple / 4-tuple formats; skip other lengths
             try:
                 if len(item) == 3:
                     s, e, t = item
-                    src = "manual"  # 三元组直接视为人工标记
+                    src = "manual"  # 3-tuples are treated directly as manual labels
                 elif len(item) >= 4:
-                    s, e, t, src = item[:4]  # 四元组用自带的 source
+                    s, e, t, src = item[:4]  # 4-tuples use their own source field
                 else:
                     continue
             except Exception:
@@ -2370,10 +2372,10 @@ class AudioViewer(QMainWindow):
 
 
     def eventFilter(self, obj, event):
-        """应用级事件过滤器：处理需要复杂逻辑的快捷键。
+        """Application-level event filter: handles shortcuts that require complex logic.
 
-        包括：Ctrl+Z 撤销（兜底）、编辑模式 Enter/Esc、
-        Delete 删除选中标注、Ctrl+A 认可 ML 标注。
+        Includes: Ctrl+Z undo (fallback), edit-mode Enter/Esc,
+        Delete to remove the selected annotation, Ctrl+A to accept an ML annotation.
         """
         try:
             et = event.type()
@@ -2381,7 +2383,7 @@ class AudioViewer(QMainWindow):
                 key = event.key() if hasattr(event, "key") else None
                 mods = event.modifiers() if hasattr(event, "modifiers") else Qt.NoModifier
 
-                # Ctrl+Z 撤销
+                # Ctrl+Z undo
                 if (mods & Qt.ControlModifier) and key == Qt.Key_Z:
                     if getattr(self, "_undo_stack", None):
                         self.undo_last_action()
@@ -2391,7 +2393,7 @@ class AudioViewer(QMainWindow):
                             pass
                         return True
 
-                # Ctrl+A 认可选中的 ML 标注
+                # Ctrl+A accept the selected ML annotation
                 if (mods & Qt.ControlModifier) and key == Qt.Key_A:
                     sel = getattr(self, "_selected_span", None)
                     if sel is not None:
@@ -2405,7 +2407,7 @@ class AudioViewer(QMainWindow):
                             pass
                         return True
 
-                # Delete 键删除选中的标注
+                # Delete key removes the selected annotation
                 if key in (Qt.Key_Delete, Qt.Key_Backspace):
                     sel = getattr(self, "_selected_span", None)
                     if sel is not None:
@@ -2420,7 +2422,7 @@ class AudioViewer(QMainWindow):
                             pass
                         return True
 
-                # 编辑模式键盘：Enter 提交 / Esc 取消
+                # Edit-mode keyboard: Enter to commit / Esc to cancel
                 cur = getattr(self, "_editing_span", None)
                 if cur is not None:
                     if key in (Qt.Key_Return, Qt.Key_Enter):

@@ -1,3 +1,3 @@
 """RespAnno: Respiratory Sound Annotation Tool."""
 
-__version__ = "1.6.6"
+__version__ = "1.0.0"

@@ -9,48 +9,48 @@ from respanno.ml.hsmm import estimate_hop_sec, estimate_breath_cycle_sec, build_
 class TestEstimateHopSec:
 
     def test_from_sr_hop(self):
-        """验证：estimate_hop_sec(sr=4000, hop_length=256) == pytest.approx(0.064)。"""
+        """Verify：estimate_hop_sec(sr=4000, hop_length=256) == pytest.approx(0.064)。"""
         assert estimate_hop_sec(sr=4000, hop_length=256) == pytest.approx(0.064)
 
     def test_from_times(self):
-        """验证：estimate_hop_sec(times=times) == pytest.approx(0.064)。"""
+        """Verify：estimate_hop_sec(times=times) == pytest.approx(0.064)。"""
         times = np.array([0.0, 0.064, 0.128, 0.192, 0.256])
         assert estimate_hop_sec(times=times) == pytest.approx(0.064)
 
     def test_default(self):
-        """验证默认参数值符合预期。"""
+        """Verifydefaultparameter值符合预期。"""
         assert estimate_hop_sec() == pytest.approx(0.05)
 
 class TestEstimateBreathCycleSec:
 
     def test_from_starts(self):
-        """验证：cyc > 0。"""
+        """Verify：cyc > 0。"""
         seg_I = [(0.0, 1.0), (3.0, 4.0), (6.0, 7.0)]
         seg_E = [(1.5, 2.5), (4.5, 5.5)]
         cyc = estimate_breath_cycle_sec(seg_I, seg_E)
         assert cyc > 0
 
     def test_default_when_empty(self):
-        """验证默认参数值符合预期。"""
+        """Verifydefaultparameter值符合预期。"""
         cyc = estimate_breath_cycle_sec([], [], default=4.0)
         assert cyc == 4.0
 
 class TestBuildHSMMLogTrans:
 
     def test_2state(self):
-        """验证：A.shape == (2, 2)。"""
+        """Verify：A.shape == (2, 2)。"""
         A = build_hsmm_log_trans(['Inspiration', 'Expiration'])
         assert A.shape == (2, 2)
         assert np.all(np.isfinite(A))
 
     def test_3state_with_pause(self):
-        """验证：A.shape == (3, 3)。"""
+        """Verify：A.shape == (3, 3)。"""
         A = build_hsmm_log_trans(['Inspiration', 'Expiration', 'Pause'])
         assert A.shape == (3, 3)
         assert np.isfinite(A[2, 2])
 
     def test_3state_insp_to_exp_finite(self):
-        """验证：np.isfinite(A[0, 1])。"""
+        """Verify：np.isfinite(A[0, 1])。"""
         A = build_hsmm_log_trans(['Inspiration', 'Expiration', 'Pause'])
         assert np.isfinite(A[0, 1])
         assert np.isfinite(A[1, 0])
@@ -58,7 +58,7 @@ class TestBuildHSMMLogTrans:
 class TestHSMMViterbi:
 
     def test_single_state_dominates(self):
-        """验证：z.shape == (T,)。"""
+        """Verify：z.shape == (T,)。"""
         (T, S) = (40, 2)
         log_emit = np.zeros((T, S))
         log_emit[:, 0] = np.log(0.9)
@@ -72,7 +72,7 @@ class TestHSMMViterbi:
         assert np.all(z == 0)
 
     def test_state_switch_on_flip(self):
-        """验证：z.shape == (T,)。"""
+        """Verify：z.shape == (T,)。"""
         (T, S) = (60, 2)
         log_emit = np.zeros((T, S))
         log_emit[:30, 0] = np.log(0.9)
@@ -88,7 +88,7 @@ class TestHSMMViterbi:
         assert np.mean(z[:20] == 0) > 0.5
 
     def test_3state(self):
-        """验证：z.shape == (T,)。"""
+        """Verify：z.shape == (T,)。"""
         (T, S) = (90, 3)
         rng = np.random.default_rng(42)
         log_emit = np.log(np.clip(rng.random((T, S)), 0.05, 0.95))
@@ -104,7 +104,7 @@ class TestHSMMViterbi:
         assert len(np.unique(z)) >= 2
 
     def test_numerical_stability(self):
-        """验证：z.shape == (T,)。"""
+        """Verify：z.shape == (T,)。"""
         (T, S) = (200, 2)
         rng = np.random.default_rng(999)
         log_emit = np.log(np.clip(rng.random((T, S)), 1e-06, 1.0))
@@ -119,7 +119,7 @@ class TestHSMMViterbi:
 class TestHSMMPrior:
 
     def test_output_has_required_keys(self):
-        """验证：len(prior['dmin_frames']) == 3。"""
+        """Verify：len(prior['dmin_frames']) == 3。"""
         y = np.array([0, 0, 0, 1, 1, 2, 2, 2, 2, 1, 1, 0, 0, 0, 0, 2, 2], dtype=int)
         prior = build_hsmm_prior_from_prefix_labels(y_prefix=y, classes_=[0, 1, 2], state_id_to_name={0: 'Insp', 1: 'Exp', 2: 'Pause'}, hop_sec=0.064, cycle_sec=3.0)
         for key in ('classes', 'hop_sec', 'cycle_sec', 'dmin_frames', 'dmax_frames'):
@@ -128,7 +128,7 @@ class TestHSMMPrior:
         assert len(prior['dmax_frames']) == 3
 
     def test_dmin_positive(self):
-        """验证从已标注帧学习到的 HSMM 时长先验（dmin/dmax）在合理范围内。"""
+        """Verify从已annotation帧学习到的 HSMM 时长prior（dmin/dmax）在合理range内。"""
         y = np.array([0, 0, 0, 1, 1, 2, 2, 2, 2], dtype=int)
         prior = build_hsmm_prior_from_prefix_labels(y_prefix=y, classes_=[0, 1, 2], state_id_to_name={0: 'Insp', 1: 'Exp', 2: 'Pause'}, hop_sec=0.064, cycle_sec=3.0)
         for d in prior['dmin_frames']:
@@ -137,7 +137,7 @@ class TestHSMMPrior:
             assert d >= prior['dmin_frames'][0]
 
     def test_single_class_fallback(self):
-        """验证：len(prior['dmin_frames']) == 1。"""
+        """Verify：len(prior['dmin_frames']) == 1。"""
         y = np.array([0, 0, 0, 0], dtype=int)
         prior = build_hsmm_prior_from_prefix_labels(y_prefix=y, classes_=[0], state_id_to_name={0: 'Insp'}, hop_sec=0.064, cycle_sec=3.0)
         assert len(prior['dmin_frames']) == 1
@@ -145,7 +145,7 @@ class TestHSMMPrior:
 class TestStateSeqToSegments:
 
     def test_basic(self):
-        """验证：len(segs) == 1。"""
+        """Verify：len(segs) == 1。"""
         times = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
         idx_unr = np.array([0, 1, 2, 3, 4, 5])
         z = np.array([0, 0, 1, 1, 0, 0])
@@ -154,7 +154,7 @@ class TestStateSeqToSegments:
         assert segs[0] == (0.2, 0.3)
 
     def test_min_dur_filter(self):
-        """验证短于 min_dur_sec 的预测片段被正确过滤。"""
+        """Verify短于 min_dur_sec 的predict片段被正确filter。"""
         times = np.linspace(0, 1, 20)
         idx_unr = np.arange(20)
         z = np.array([0] * 5 + [1] + [0] * 14)
@@ -162,6 +162,6 @@ class TestStateSeqToSegments:
         assert len(segs) == 0
 
     def test_empty_unreviewed(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         segs = state_seq_to_segments(np.array([]), np.array([]), np.array([]), 0, 0.05)
         assert segs == []

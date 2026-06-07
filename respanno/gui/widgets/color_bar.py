@@ -90,7 +90,7 @@ class ColorBarWidget(QWidget):
         self.colorbar = ColorBarWidget(viewer=viewer)
         layout.addWidget(self.colorbar, 0)
 
-        # 上下限指示线
+        # 上lower limit指示线
         self.min_line = pg.InfiniteLine(angle=90, pen=pg.mkPen('y'))
         self.max_line = pg.InfiniteLine(angle=90, pen=pg.mkPen('y'))
         self.hist_plot.addItem(self.min_line)

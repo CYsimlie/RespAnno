@@ -17,20 +17,20 @@ def _make_viewer(n_frames=200, n_features=56, annotations=None, seed=42):
 class TestPreconditions:
 
     def test_returns_false_when_no_model(self):
-        """验证前置条件不满足时返回 False：no model。"""
+        """Verify前置条件不满足时返回 False：no model。"""
         viewer = _make_viewer()
         ok = apply_event_model(viewer, 'Wheeze')
         assert ok is False
 
     def test_returns_false_when_no_features(self):
-        """验证前置条件不满足时返回 False：no features。"""
+        """Verify前置条件不满足时返回 False：no features。"""
         viewer = MockViewer()
         viewer.ml_models['Wheeze'] = {'clf': 'dummy', 'threshold': 0.5}
         ok = apply_event_model(viewer, 'Wheeze')
         assert ok is False
 
     def test_returns_false_when_no_annotations(self):
-        """验证前置条件不满足时返回 False：no annotations。"""
+        """Verify前置条件不满足时返回 False：no annotations。"""
         viewer = _make_viewer(annotations=[])
         ok = apply_event_model(viewer, 'Wheeze')
         assert ok is False
@@ -38,7 +38,7 @@ class TestPreconditions:
 class TestSuccessfulApply:
 
     def test_generates_segments_after_training(self):
-        """验证模型训练后正确存储到 ml_models 字典。"""
+        """Verifymodeltrain后正确存储到 ml_models 字典。"""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         train_event_model(viewer, 'Wheeze', random_state=42)
         ok = apply_event_model(viewer, 'Wheeze', min_dur_sec=0.05)
@@ -47,7 +47,7 @@ class TestSuccessfulApply:
             assert len(viewer.imported) > 0
 
     def test_generated_segments_within_unreviewed_region(self):
-        """验证 ML 推理生成的片段位于未审阅区域内。"""
+        """Verify ML inference生成的片段位于未reviewregion内。"""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         train_event_model(viewer, 'Wheeze', random_state=42)
         ok = apply_event_model(viewer, 'Wheeze', min_dur_sec=0.0)
@@ -56,7 +56,7 @@ class TestSuccessfulApply:
                 assert s > 3.0 or e > 3.0
 
     def test_min_dur_filters_short_segments(self):
-        """验证短于 min_dur_sec 的预测片段被正确过滤。"""
+        """Verify短于 min_dur_sec 的predict片段被正确filter。"""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 5.0, 'Wheeze', 'manual')])
         train_event_model(viewer, 'Wheeze', random_state=42)
         ok_strict = apply_event_model(viewer, 'Wheeze', min_dur_sec=100.0)

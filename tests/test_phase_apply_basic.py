@@ -17,26 +17,26 @@ def _make_viewer(n_frames=200, n_features=56, annotations=None, sr=4000, hop_len
 class TestPreconditions:
 
     def test_returns_false_when_no_model(self):
-        """验证前置条件不满足时返回 False：no model。"""
+        """Verify前置条件不满足时返回 False：no model。"""
         viewer = _make_viewer()
         ok = apply_phase_model(viewer, 'Inspiration')
         assert ok is False
 
     def test_returns_false_when_no_features(self):
-        """验证前置条件不满足时返回 False：no features。"""
+        """Verify前置条件不满足时返回 False：no features。"""
         viewer = MockViewer()
         viewer.ml_models['Inspiration'] = {'model_kind': 'phase', 'dummy': True}
         ok = apply_phase_model(viewer, 'Inspiration')
         assert ok is False
 
     def test_returns_false_without_phase_annotations(self):
-        """验证前置条件不满足时返回 False：without phase annotations。"""
+        """Verify前置条件不满足时返回 False：without phase annotations。"""
         viewer = _make_viewer(annotations=[(0.5, 2.0, 'Wheeze', 'manual')])
         ok = apply_phase_model(viewer, 'Inspiration')
         assert ok is False
 
     def test_returns_false_when_model_kind_mismatch(self):
-        """验证前置条件不满足时返回 False：model kind mismatch。"""
+        """Verify前置条件不满足时返回 False：model kind mismatch。"""
         viewer = _make_viewer(annotations=[(0.5, 2.0, 'Inspiration', 'manual')])
         viewer.ml_models['Inspiration'] = {'model_kind': 'event'}
         ok = apply_phase_model(viewer, 'Inspiration')
@@ -45,14 +45,14 @@ class TestPreconditions:
 class TestSuccessfulApply:
 
     def test_generates_segments_after_training(self):
-        """验证模型训练后正确存储到 ml_models 字典。"""
+        """Verifymodeltrain后正确存储到 ml_models 字典。"""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 2.5, 'Inspiration', 'manual'), (3.0, 5.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         ok = apply_phase_model(viewer, 'Inspiration', min_dur_sec=0.05)
         assert ok in (True, False)
 
     def test_target_label_routing_inspiration(self):
-        """验证：label == 'Inspiration'。"""
+        """Verify：label == 'Inspiration'。"""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 2.5, 'Inspiration', 'manual'), (3.0, 5.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         ok = apply_phase_model(viewer, 'inspiration', min_dur_sec=0.0)
@@ -61,7 +61,7 @@ class TestSuccessfulApply:
                 assert label == 'Inspiration'
 
     def test_target_label_routing_expiration(self):
-        """验证：label == 'Expiration'。"""
+        """Verify：label == 'Expiration'。"""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 2.5, 'Inspiration', 'manual'), (3.0, 5.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         ok = apply_phase_model(viewer, 'expiration', min_dur_sec=0.0)
@@ -72,7 +72,7 @@ class TestSuccessfulApply:
 class TestHSMMPrior:
 
     def test_returns_false_when_missing_duration_priors(self):
-        """验证前置条件不满足时返回 False：missing duration priors。"""
+        """Verify前置条件不满足时返回 False：missing duration priors。"""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 2.5, 'Inspiration', 'manual'), (3.0, 5.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         viewer.ml_models['Inspiration']['hsmm_prior'] = {}

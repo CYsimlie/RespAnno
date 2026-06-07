@@ -2,7 +2,7 @@
 
 > 用途：作为 SoftwareX 论文撰写的提示词素材，供其他 LLM 使用。
 > 项目：RespAnno — Interactive Respiratory Sound Annotation Tool with ML-Assisted Labeling
-> 版本：v1.6.6 | 语言：Python ≥ 3.9 | 许可：MIT | 代码量：~7,900 行（后端 5,500 + GUI 2,400）
+> 版本：v1.0.0 | 语言：Python ≥ 3.9 | 许可：MIT | 代码量：~7,900 行（后端 5,500 + GUI 2,400）
 
 ---
 

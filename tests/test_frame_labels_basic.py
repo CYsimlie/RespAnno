@@ -9,14 +9,14 @@ def _make_times(start, end, hop=0.064):
 class TestIterReviewedAnnotations:
 
     def test_3tuple_yields_manual(self):
-        """验证三元组格式 (start, end, label) 正确规范化为标准 dict，source 默认 manual。"""
+        """Verify三元组format (start, end, label) 正确规范化为标准 dict，source default manual。"""
         anns = [(0.5, 1.2, 'Wheeze')]
         items = list(_iter_reviewed_annotations(anns))
         assert len(items) == 1
         assert items[0] == (0.5, 1.2, 'Wheeze')
 
     def test_4tuple_yields_with_source(self):
-        """验证标注的 source 溯源信息正确保留。"""
+        """Verifyannotation的 source 溯源info正ensure留。"""
         anns = [(0.5, 1.2, 'Wheeze', 'manual')]
         items = list(_iter_reviewed_annotations(anns))
         assert len(items) == 1
@@ -29,59 +29,59 @@ class TestIterReviewedAnnotations:
         assert items[0][2] == 'Rhonchi'
 
     def test_skips_none(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         anns = [None, (0.1, 0.5, 'Wheeze'), None]
         items = list(_iter_reviewed_annotations(anns))
         assert len(items) == 1
 
     def test_all_reviewed_sources_accepted(self):
-        """验证标注的 source 溯源信息正确保留。"""
+        """Verifyannotation的 source 溯源info正ensure留。"""
         for src in ('manual', 'auto_accepted', 'auto_edited', 'merged', 'merged_thresh_ctx'):
             items = list(_iter_reviewed_annotations([(0.1, 0.5, 'X', src)]))
             assert len(items) == 1, f"source '{src}' should be reviewed"
 
     def test_case_insensitive_source(self):
-        """验证标注的 source 溯源信息正确保留。"""
+        """Verifyannotation的 source 溯源info正ensure留。"""
         items = list(_iter_reviewed_annotations([(0.1, 0.5, 'X', 'MANUAL')]))
         assert len(items) == 1
 
 class TestGetManualSegments:
 
     def test_returns_matching_label(self):
-        """验证：segs == [(0.1, 0.5), (1.1, 1.5)]。"""
+        """Verify：segs == [(0.1, 0.5), (1.1, 1.5)]。"""
         anns = [(0.1, 0.5, 'Wheeze'), (0.6, 1.0, 'Crackles'), (1.1, 1.5, 'Wheeze')]
         segs = get_manual_segments(anns, 'Wheeze')
         assert segs == [(0.1, 0.5), (1.1, 1.5)]
 
     def test_empty_when_no_match(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         anns = [(0.1, 0.5, 'Crackles')]
         assert get_manual_segments(anns, 'Wheeze') == []
 
     def test_empty_annotations(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         assert get_manual_segments([], 'Wheeze') == []
 
 class TestGetReviewedPrefix:
 
     def test_max_end_time(self):
-        """验证：get_reviewed_prefix(anns) == pytest.approx(2.0)。"""
+        """Verify：get_reviewed_prefix(anns) == pytest.approx(2.0)。"""
         anns = [(0.1, 0.5, 'A'), (0.6, 2.0, 'B'), (1.0, 1.5, 'C')]
         assert get_reviewed_prefix(anns) == pytest.approx(2.0)
 
     def test_zero_when_empty(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         assert get_reviewed_prefix([]) == 0.0
 
 class TestBuildFrameLabels:
 
     def test_empty_frame_times_returns_none(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         y = build_frame_labels([(0.1, 1.0, 'Wheeze')], np.array([]), 'Wheeze')
         assert y is None
 
     def test_empty_annotations_returns_none(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify空input或 None input时的行为。"""
         times = _make_times(0, 2.0)
         y = build_frame_labels([], times, 'Wheeze')
         assert y is None

@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-427%20passed-brightgreen)](./tests)
+[![Tests](https://img.shields.io/badge/tests-535%20passed-brightgreen)](./tests)
 
 **RespAnno** is an open-source, interactive annotation tool for respiratory
 sound analysis. It provides a complete pipeline from audio preprocessing and
@@ -15,7 +15,7 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 
 | Nr. | Code metadata description | Please fill in |
 |-----|---------------------------|----------------|
-| C1  | Current code version      | v1.6.6         |
+| C1  | Current code version      | v1.0.0         |
 | C2  | Permanent link to code / repository used for this code version | https://github.com/chaoyuepan/RespAnno |
 | C3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
 | C4  | Legal Code License        | MIT            |
@@ -29,7 +29,7 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 
 | Nr. | Software metadata description | Please fill in |
 |-----|------------------------------|----------------|
-| S1  | Current software version     | v1.6.6         |
+| S1  | Current software version     | v1.0.0         |
 | S2  | Permanent link to executables of this version | (via PyInstaller, see [§ Installation](#installation)) |
 | S3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
 | S4  | Legal Software License       | MIT            |
