@@ -80,3 +80,94 @@ class TestSourceProvenanceRoundtrip:
                 for (a, b) in zip(original, loaded):
                     src_a = a[3] if len(a) >= 4 else 'manual'
                     assert b['source'] == src_a, f'format={fmt}: source mismatch'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Extended roundtrip tests (SoftwareX review readiness)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRealAnnotationWorkflow:
+    """Full pipeline: synthetic WAV with annotations → preprocess → export → re-import → verify values."""
+
+    def _build_wav_with_annotations(self, d, name, audio, sr, annotations):
+        """Helper: write WAV, preprocess it, write annotations, return metadata."""
+        wav_path = os.path.join(d, name)
+        _save_wav(wav_path, audio, sr)
+        processed, loaded_sr, meta = preprocess_audio_file(wav_path)
+        anns = [normalize_annotation(a) for a in annotations]
+        return wav_path, anns, meta
+
+    def test_wheeze_annotation_roundtrip_csv(self):
+        """WAV with wheeze → export CSV → re-import → wheeze interval preserved."""
+        from tests.fixtures.synthetic_signals import generate_wheeze_episode
+        audio, sr, annotations = generate_wheeze_episode(duration=4.0, wheeze_start=1.0, wheeze_dur=1.5, seed=42)
+        with tempfile.TemporaryDirectory() as d:
+            wav_path, anns, meta = self._build_wav_with_annotations(d, 'test.wav', audio, sr, annotations)
+            csv_path = os.path.join(d, 'events.csv')
+            write_annotations(csv_path, anns)
+            loaded = read_annotations(csv_path)
+            assert len(loaded) == 1
+            assert loaded[0]['label'] == 'Wheeze'
+            assert loaded[0]['start'] == pytest.approx(1.0, abs=0.02)
+            assert loaded[0]['end'] == pytest.approx(2.5, abs=0.02)
+
+    def test_respiratory_cycle_roundtrip_json(self):
+        """Full respiratory cycle annotations survive JSON roundtrip."""
+        from tests.fixtures.synthetic_signals import generate_respiratory_cycle
+        dur = 8.0
+        audio, sr, annotations = generate_respiratory_cycle(duration=dur, seed=42)
+        with tempfile.TemporaryDirectory() as d:
+            wav_path, anns, meta = self._build_wav_with_annotations(d, 'cycle.wav', audio, sr, annotations)
+            json_path = os.path.join(d, 'cycle.json')
+            write_annotations(json_path, anns)
+            loaded = read_annotations(json_path)
+            # Should have multiple phase annotations + adventitious sounds
+            assert len(loaded) >= 6, f"Expected >=6 annotations in respiratory cycle, got {len(loaded)}"
+            labels = {a['label'] for a in loaded}
+            assert 'Inspiration' in labels
+            assert 'Expiration' in labels
+            # Verify all start times are within signal bounds
+            for a in loaded:
+                assert 0 <= a['start'] < a['end'] <= dur, \
+                    f"annotation out of bounds: {a}"
+
+    def test_multi_label_roundtrip_txt(self):
+        """Mixed episode (wheeze + crackles) survives TXT roundtrip."""
+        from tests.fixtures.synthetic_signals import generate_mixed_episode
+        audio, sr, annotations = generate_mixed_episode(duration=6.0, seed=42)
+        with tempfile.TemporaryDirectory() as d:
+            wav_path, anns, meta = self._build_wav_with_annotations(d, 'mixed.wav', audio, sr, annotations)
+            txt_path = os.path.join(d, 'mixed.txt')
+            write_annotations(txt_path, anns)
+            loaded = read_annotations(txt_path)
+            assert len(loaded) >= 4
+            labels = {a['label'] for a in loaded}
+            assert 'Wheeze' in labels
+            assert 'Crackles' in labels
+
+    def test_numeric_precision_preserved_csv(self):
+        """Timestamps with 3 decimal digits must survive CSV roundtrip exactly."""
+        annotations = [
+            (0.123, 0.456, 'Event', 'manual'),
+            (1.789, 2.345, 'Phase', 'ml'),
+            (3.001, 4.999, 'Test', 'auto_accepted'),
+        ]
+        anns = [normalize_annotation(a) for a in annotations]
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'precision.csv')
+            write_annotations(path, anns)
+            loaded = read_annotations(path)
+            assert len(loaded) == 3
+            assert loaded[0]['start'] == pytest.approx(0.123, abs=0.001)
+            assert loaded[0]['end'] == pytest.approx(0.456, abs=0.001)
+            assert loaded[2]['start'] == pytest.approx(3.001, abs=0.001)
+            assert loaded[2]['end'] == pytest.approx(4.999, abs=0.001)
+
+    def test_empty_annotations_all_formats(self):
+        """Empty annotation list roundtrips through all three formats."""
+        with tempfile.TemporaryDirectory() as d:
+            for ext in ['csv', 'txt', 'json']:
+                path = os.path.join(d, f'empty.{ext}')
+                write_annotations(path, [])
+                loaded = read_annotations(path)
+                assert loaded == [], f"Expected empty list for {ext}, got {loaded}"

@@ -126,3 +126,60 @@ class TestSyntheticSignalDeterminism:
         (a1, _, _) = generate_respiratory_cycle(seed=42)
         (a2, _, _) = generate_respiratory_cycle(seed=99)
         assert not np.allclose(a1, a2)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Cross-Process Reproducibility (SoftwareX requirement)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestCrossProcessReproducibility:
+    """Verify that independent Python processes produce identical pipeline hashes.
+
+    Same input + same seed → identical output, even across process boundaries.
+    This proves there are no hidden global-state / caching effects.
+    """
+
+    @pytest.fixture(scope="class")
+    def repro_script(self):
+        """Path to the repro_check.py helper script."""
+        import os as _os
+        tests_dir = _os.path.dirname(_os.path.abspath(__file__))
+        script = _os.path.join(tests_dir, "..", "scripts", "repro_check.py")
+        script = _os.path.abspath(script)
+        assert _os.path.isfile(script), f"repro_check.py not found at {script}"
+        return script
+
+    def _run_repro(self, repro_script, seed):
+        """Run repro_check.py in a subprocess and return its FINAL_HASH."""
+        import subprocess
+        result = subprocess.run(
+            ["python", repro_script, f"--seed={seed}"],
+            capture_output=True, text=True, timeout=120,
+            env={**__import__('os').environ, "PYTHONPATH": __import__('os').pathsep.join([
+                __import__('os').path.dirname(__import__('os').path.dirname(__import__('os').path.abspath(__file__))),
+                __import__('os').path.dirname(__import__('os').path.abspath(__file__)),
+            ])}
+        )
+        assert result.returncode == 0, f"subprocess failed: {result.stderr}"
+        for line in result.stdout.splitlines():
+            if line.startswith("FINAL_HASH:"):
+                return line.split(":")[1].strip()
+        raise RuntimeError(f"FINAL_HASH not found in output:\n{result.stdout}")
+
+    def test_same_seed_same_hash_across_processes(self, repro_script):
+        """Two independent subprocess runs with same seed → identical hash."""
+        h1 = self._run_repro(repro_script, seed=42)
+        h2 = self._run_repro(repro_script, seed=42)
+        assert h1 == h2, f"Cross-process hashes differ: {h1[:16]}... vs {h2[:16]}..."
+        assert len(h1) == 64  # SHA-256 hex digest
+
+    def test_different_seed_different_hash_across_processes(self, repro_script):
+        """Two subprocess runs with different seeds → different hashes."""
+        h1 = self._run_repro(repro_script, seed=42)
+        h2 = self._run_repro(repro_script, seed=99)
+        assert h1 != h2, "Different seeds should produce different hashes"
+
+    def test_three_runs_all_identical(self, repro_script):
+        """Three independent runs with same seed → all identical (N=3 check)."""
+        hashes = [self._run_repro(repro_script, seed=123) for _ in range(3)]
+        assert len(set(hashes)) == 1, f"Expected 1 unique hash, got {len(set(hashes))}"

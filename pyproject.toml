@@ -36,6 +36,8 @@ dependencies = [
 dev = [
     "pytest>=7",
     "pytest-qt>=4",
+    "pytest-cov>=4",
+    "pytest-timeout>=2",
 ]
 
 [project.scripts]
@@ -47,3 +49,25 @@ include = ["respanno*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v"
+timeout = 300
+markers = [
+    "slow: tests that take more than 10 seconds",
+    "gui: tests that require a display (PyQt5)",
+    "e2e: end-to-end ML pipeline tests",
+    "perf: performance baseline tests (report-only by default)",
+]
+filterwarnings = [
+    "ignore::UserWarning",
+]
+
+[tool.coverage.run]
+source = ["respanno"]
+omit = ["respanno/gui/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+show_missing = true

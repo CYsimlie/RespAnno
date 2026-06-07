@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          environment-file: environment.yml
+          activate-environment: respanno
+          auto-activate-base: false
+
+      - name: Verify environment
+        shell: bash -el {0}
+        run: |
+          python -c "import numpy; print('numpy', numpy.__version__)"
+          python -c "import scipy; print('scipy', scipy.__version__)"
+          python -c "import sklearn; print('sklearn', sklearn.__version__)"
+          python -c "import lightgbm; print('lightgbm', lightgbm.__version__)"
+
+      - name: Install dev dependencies
+        shell: bash -el {0}
+        run: pip install pytest-cov pytest-timeout
+
+      - name: Run tests with coverage
+        shell: bash -el {0}
+        run: python -m pytest tests -q --tb=short --cov=respanno --cov-report=term --cov-report=xml --timeout=300
+
+      - name: Run ML demo
+        shell: bash -el {0}
+        run: python scripts/ml_demo.py
