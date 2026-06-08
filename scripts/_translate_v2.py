@@ -13,7 +13,7 @@ import os, re, sys
 
 ROOT = r'd:\SoftwareX_win_test\New folder2\SoftwareX'
 TARGET_DIRS = ['respanno', 'tests', 'scripts']
-TARGET_FILES = ['1.6.6.py']
+TARGET_FILES = ['1.0.0.py']
 
 CHINESE_RE = re.compile(r'[一-鿿　-〿＀-￯]')
 
@@ -266,7 +266,7 @@ PHRASES = [
     ("帧标签构建与实际特征矩阵的维度对齐", "frame label construction aligns dimensionally with actual feature matrix"),
     ("全长 ML 管线（合成音频→特征→训练→预测），验证确定性", "full-pipeline determinism: same input produces identical output"),
     ("测量完整频谱显示管线（STFT→抽稀→着色）的延迟", "measure full spectrogram display pipeline (STFT -> decimation -> colorization) latency"),
-    # ── Colors in 1.6.6.py annotations ──
+    # ── Colors in 1.0.0.py annotations ──
     ("红", "Red"),
     ("蓝", "Blue"),
     ("绿", "Green"),
@@ -333,7 +333,7 @@ PHRASES = [
     ("编辑模式下：交给 ROI 默认实现 (支持平移/改边界)", "Edit mode: delegate to ROI default implementation (supports translation / boundary changes)"),
     ('机器标注"认可"：将 source 置为 auto_accepted (进入训练/计入已审阅前缀)', 'Machine annotation "Accept": set source to auto_accepted (include in training / count as reviewed prefix)'),
     # ── Settings dialog ──
-    ("来源: 1.6.6.py 行号 79-762 (class SettingsDialog)", "Source: 1.6.6.py lines 79-762 (class SettingsDialog)"),
+    ("来源: 1.0.0.py 行号 79-762 (class SettingsDialog)", "Source: 1.0.0.py lines 79-762 (class SettingsDialog)"),
     # ── More UI/jargon ──
     ("配色", "Color scheme"),
     ("组装到 group 里", "Assemble into group"),

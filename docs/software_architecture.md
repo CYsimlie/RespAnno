@@ -22,7 +22,7 @@ respanno/
     └── hsmm.py             # HSMM Viterbi decoder, duration priors, transitions
 
 legacy/
-└── 1.6.6.py                # Frozen original single-file program (no longer edited)
+└── 1.0.0.py                # Frozen original single-file program (no longer edited)
 ```
 
 ## Data Flow

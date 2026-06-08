@@ -1,7 +1,7 @@
 """Pure STFT / spectrogram helpers (no PyQt / pyqtgraph dependency).
 
 Extracted from AudioViewer.update_spectrogram, _decimate_spec_for_display,
-_get_palette_256, and _colorize_spec_with_window in legacy/1.6.6.py.
+_get_palette_256, and _colorize_spec_with_window in legacy/1.0.0.py.
 """
 
 from __future__ import annotations

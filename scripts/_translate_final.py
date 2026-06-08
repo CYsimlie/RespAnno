@@ -1,4 +1,4 @@
-"""Final comprehensive Chinese->English for 1.6.6.py.
+"""Final comprehensive Chinese->English for 1.0.0.py.
 
 Handles ALL comment categories:
   - Pure comment lines (# ...)
@@ -14,9 +14,9 @@ C = re.compile(r'[一-鿿　-〿＀-￯]')
 # Load translate function from v2
 exec(open('scripts/_translate_v2.py', encoding='utf-8').read().split("if __name__")[0])
 
-TARGET = '1.6.6.py'
+TARGET = '1.0.0.py'
 
-# ── Additional phrases for the remaining Chinese in 1.6.6.py ─────────────
+# ── Additional phrases for the remaining Chinese in 1.0.0.py ─────────────
 MORE_PHRASES = [
     # Docstrings that were missed
     ("加载单个 WAV 文件。", "Load a single WAV file."),
@@ -93,7 +93,7 @@ MORE_PHRASES = [
     ("命名规则：<当前wav文件名不含扩展名>_events.csv", "Naming convention: <current_wav_basename_without_extension>_events.csv"),
     ("直接按照代码中的预设标签顺序生成图例，不依赖当前是否已有标注。", "Generate the legend directly from the preset label order in the code, without depending on whether annotations currently exist."),
     ("补充当前文件中出现过的自定义标签。", "Supplement with any Custom labels that appear in the current file."),
-    # ── Specific 1.6.6.py only ──
+    # ── Specific 1.0.0.py only ──
     ("—— 机器学习硬负样本管理器（仅用于训练，不导出，与标注显示无关）——", "Machine-learning hard-negative sample manager (training only; not exported; unrelated to annotation display)"),
     ("—— 撤销栈（支持删除、认可等编辑操作的回退）——", "Undo stack (supports rollback of delete, accept, and other edit operations)"),
     ("—— 多轨标注管理（最多 3 轨，仅用于标注视图）——", "Multi-lane annotation management (max 3 lanes; annotation view only)"),

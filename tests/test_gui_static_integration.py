@@ -1,10 +1,10 @@
-"""Static checks: verify that 1.6.6.py delegates to respanno modules.
+"""Static checks: verify that 1.0.0.py delegates to respanno modules.
 
 Stages 1-5:  all five pure modules connected (annotation_io, preprocessing,
              spectrogram, features, hsmm).
 Phase 2:     nine GUI widget classes extracted to respanno/gui/.
 
-These tests do NOT import 1.6.6.py (which would trigger PyQt5 / sounddevice).
+These tests do NOT import 1.0.0.py (which would trigger PyQt5 / sounddevice).
 They only scan the source text.
 """
 from __future__ import annotations
@@ -12,8 +12,8 @@ import ast
 import os
 import tokenize
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GUI_FILE = os.path.join(ROOT, '1.6.6.py')
-LEGACY_FILE = os.path.join(ROOT, 'legacy', '1.6.6.py')
+GUI_FILE = os.path.join(ROOT, '1.0.0.py')
+LEGACY_FILE = os.path.join(ROOT, 'legacy', '1.0.0.py')
 
 def _read_text(path: str) -> str:
     with open(path, 'r', encoding='utf-8') as f:
@@ -28,12 +28,12 @@ def _tokenized_source(path: str) -> str:
         return tokenize.untokenize(tokenize.generate_tokens(f.readline))
 
 def test_legacy_is_unchanged():
-    """Verify legacy/1.6.6.py 不包含对 respanno 模块的引用（保持原始快照）。"""
+    """Verify legacy/1.0.0.py 不包含对 respanno 模块的引用（保持原始快照）。"""
     text = _read_text(LEGACY_FILE)
-    assert 'respanno' not in text, 'legacy/1.6.6.py must remain frozen'
+    assert 'respanno' not in text, 'legacy/1.0.0.py must remain frozen'
 
 def test_gui_imports_annotation_io():
-    """Verify 1.6.6.py 的 AST 中包含对 respanno.annotation.io 的 import 语句。"""
+    """Verify 1.0.0.py 的 AST 中包含对 respanno.annotation.io 的 import 语句。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -46,18 +46,18 @@ def test_gui_imports_annotation_io():
                 imports.append(f'{module}.{alias.name}')
     target = 'respanno.labels.annotation_io'
     found = any((target in imp or imp.startswith(target) for imp in imports))
-    assert found, f'1.6.6.py must import from {target}'
+    assert found, f'1.0.0.py must import from {target}'
 
 def test_gui_calls_read_annotations():
-    """Verify 1.6.6.py 源码中包含对 read annotations 的函数调用。"""
+    """Verify 1.0.0.py 源码中包含对 read annotations 的函数调用。"""
     assert 'read_annotations' in _tokenized_source(GUI_FILE)
 
 def test_gui_calls_write_annotations():
-    """Verify 1.6.6.py 源码中包含对 write annotations 的函数调用。"""
+    """Verify 1.0.0.py 源码中包含对 write annotations 的函数调用。"""
     assert 'write_annotations' in _tokenized_source(GUI_FILE)
 
 def test_gui_imports_preprocessing():
-    """Verify 1.6.6.py 的 AST 中包含对 respanno.preprocessing 的 import 语句。"""
+    """Verify 1.0.0.py 的 AST 中包含对 respanno.preprocessing 的 import 语句。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -71,13 +71,13 @@ def test_gui_imports_preprocessing():
     assert any(('respanno.audio.preprocessing' in imp for imp in imports))
 
 def test_gui_calls_preprocessing_functions():
-    """Verify 1.6.6.py 源码中包含对 preprocessing functions 的函数调用。"""
+    """Verify 1.0.0.py 源码中包含对 preprocessing functions 的函数调用。"""
     src = _tokenized_source(GUI_FILE)
     required = ['apply_butter_filter', 'summarize_preprocessing', 'compute_target_sr', 'load_audio_file', 'get_original_sr']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_spectrogram():
-    """Verify 1.6.6.py 的 AST 中包含对 respanno.spectrogram 的 import 语句。"""
+    """Verify 1.0.0.py 的 AST 中包含对 respanno.spectrogram 的 import 语句。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -91,13 +91,13 @@ def test_gui_imports_spectrogram():
     assert any(('respanno.dsp.spectrogram' in imp for imp in imports))
 
 def test_gui_calls_spectrogram_functions():
-    """Verify 1.6.6.py 源码中包含对 spectrogram functions 的函数调用。"""
+    """Verify 1.0.0.py 源码中包含对 spectrogram functions 的函数调用。"""
     src = _tokenized_source(GUI_FILE)
     required = ['compute_stft_db', 'decimate_spec_for_display', 'get_palette_256', 'colorize_spectrogram']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_features():
-    """Verify 1.6.6.py 的 AST 中包含对 respanno.features 的 import 语句。"""
+    """Verify 1.0.0.py 的 AST 中包含对 respanno.features 的 import 语句。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -111,13 +111,13 @@ def test_gui_imports_features():
     assert any(('respanno.dsp.features' in imp for imp in imports))
 
 def test_gui_calls_features_functions():
-    """Verify 1.6.6.py 源码中包含对 features functions 的函数调用。"""
+    """Verify 1.0.0.py 源码中包含对 features functions 的函数调用。"""
     src = _tokenized_source(GUI_FILE)
     required = ['compute_short_time_features', 'build_feature_matrix', 'normalize_feature_for_display']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_ml_service():
-    """Verify 1.6.6.py import respanno.ml.service（ML pipeline的统一入口）。"""
+    """Verify 1.0.0.py import respanno.ml.service（ML pipeline的统一入口）。"""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -129,7 +129,7 @@ def test_gui_imports_ml_service():
             for alias in node.names:
                 imports.append(f'{module}.{alias.name}')
     assert any(('respanno.ml.service' in imp for imp in imports)), (
-        f'1.6.6.py must import from respanno.ml.service\n'
+        f'1.0.0.py must import from respanno.ml.service\n'
         f'Found: {[i for i in imports if "respanno" in i]}')
 
 def test_ml_functions_reachable_via_service():
@@ -189,7 +189,7 @@ def test_gui_modules_compile():
             raise AssertionError(f'Module does not compile: {rel_path}\n{e}')
 
 def test_gui_imports_widget_classes():
-    """1.6.6.py must import the 9 extracted classes from respanno.gui."""
+    """1.0.0.py must import the 9 extracted classes from respanno.gui."""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -199,7 +199,7 @@ def test_gui_imports_widget_classes():
                 imports.append(f'{module}.{alias.name}')
     required = {'respanno.gui.widgets.clickable_slider.ClickableSlider', 'respanno.gui.widgets.color_bar.ColorBarWidget', 'respanno.gui.dialogs.annotation_label_dialog.AnnotationLabelDialog', 'respanno.gui.dialogs.loop_player.LoopPlayer', 'respanno.gui.dialogs.settings_dialog.SettingsDialog', 'respanno.gui.spans.span_label_item.SpanLabelItem', 'respanno.gui.spans.box_span.BoxSpan', 'respanno.gui.views.annot_view_box.AnnotViewBox', 'respanno.gui.views.wave_view_box.WaveViewBox'}
     missing = required - set(imports)
-    assert not missing, f'1.6.6.py missing GUI imports: {missing}'
+    assert not missing, f'1.0.0.py missing GUI imports: {missing}'
 
 def test_mlservice_not_rewired():
     """Verify：any((allowed in full for allowed in ALLOWED_RESPANNO))。"""
@@ -215,7 +215,7 @@ def test_boxspan_not_rewired():
     assert not refs, f'BoxSpan must not import respanno modules, found: {refs}'
 
 def test_settings_dialog_imports_color_check_delegate():
-    """ColorCheckDelegate is no longer imported in 1.6.6.py — it must be
+    """ColorCheckDelegate is no longer imported in 1.0.0.py — it must be
     imported internally by settings_dialog.py instead."""
     import ast as ast_m
     settings_path = os.path.join(ROOT, 'respanno', 'gui', 'dialogs', 'settings_dialog.py')

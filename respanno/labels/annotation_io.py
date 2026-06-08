@@ -10,7 +10,7 @@ All functions operate on a standard dict format:
     }
 
 The ``config`` dict throughout this module mirrors the structure stored
-in ``AudioViewer.auto_label_import_settings`` (see legacy 1.6.6.py).
+in ``AudioViewer.auto_label_import_settings`` (see legacy 1.0.0.py).
 """
 
 from __future__ import annotations

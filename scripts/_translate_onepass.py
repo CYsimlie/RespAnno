@@ -1,4 +1,4 @@
-"""One-pass complete translation of ALL Chinese in comments/docstrings in 1.6.6.py.
+"""One-pass complete translation of ALL Chinese in comments/docstrings in 1.0.0.py.
 
 Combines ALL phrase lists from v2, final, and extra missing words.
 Only touches # comments, docstrings, and inline comments. Never data lines.
@@ -227,7 +227,7 @@ DATA_KW = ['哮鸣音','爆裂音','摩擦音','哼鸣音','喘息音','吸气',
            '("', "('"]
 
 # ── Process ─────────────────────────────────────────────────────────────
-with open('1.6.6.py', encoding='utf-8') as f:
+with open('1.0.0.py', encoding='utf-8') as f:
     lines = f.readlines()
 
 changed = 0
@@ -253,6 +253,6 @@ for i, line in enumerate(lines):
         lines[i] = new
         changed += 1
 
-with open('1.6.6.py', 'w', encoding='utf-8') as f:
+with open('1.0.0.py', 'w', encoding='utf-8') as f:
     f.writelines(lines)
 print(f'{changed} comment/docstring lines translated')

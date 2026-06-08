@@ -114,7 +114,7 @@
 
 ### 2.5 test_gui_static_integration（26 tests）⭐⭐⭐☆☆
 
-**测试目的**：AST 静态分析验证 1.6.6.py 引用了 respanno 模块。
+**测试目的**：AST 静态分析验证 1.0.0.py 引用了 respanno 模块。
 
 | 维度 | 评价 | 详细分析 |
 |------|------|---------|

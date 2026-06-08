@@ -40,7 +40,7 @@ python -c "import PyQt5; import pyqtgraph; import librosa; import sklearn; impor
 
 ```powershell
 # 方式一：直接启动 legacy 程序
-python 1.6.6.py
+python 1.0.0.py
 
 # 方式二：通过包入口启动
 python -m respanno.main

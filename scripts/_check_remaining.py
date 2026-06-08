@@ -1,7 +1,7 @@
-"""Show remaining Chinese lines in 1.6.6.py, categorized."""
+"""Show remaining Chinese lines in 1.0.0.py, categorized."""
 import os, re
 C = re.compile(r'[一-鿿　-〿＀-￯]')
-fpath = r'd:\SoftwareX_win_test\New folder2\SoftwareX\1.6.6.py'
+fpath = r'd:\SoftwareX_win_test\New folder2\SoftwareX\1.0.0.py'
 with open(fpath, encoding='utf-8') as f:
     lines = f.readlines()
 

@@ -11,7 +11,7 @@
 ### 分层设计
 
 ```
-1.6.6.py (主入口, 2443行, 1个类AudioViewer)
+1.0.0.py (主入口, 2443行, 1个类AudioViewer)
   │
   └─► respanno/  (纯Python后端, 33个.py文件, ~5500行)
         ├── audio/      — 音频预处理层

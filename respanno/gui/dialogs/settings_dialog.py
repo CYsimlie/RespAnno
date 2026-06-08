@@ -1,6 +1,6 @@
 """Settings dialog with STFT / Display / Preprocessing / Auto Label Import / Features tabs.
 
-Source: 1.6.6.py lines 79-762 (class SettingsDialog)
+Source: 1.0.0.py lines 79-762 (class SettingsDialog)
 """
 
 import numpy as np

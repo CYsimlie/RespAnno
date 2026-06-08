@@ -26,7 +26,7 @@
 - Default STFT parameters: n_fft 512→256, hop_length 256→64
 - All Chinese comments rewritten to professional style
 - Cleaned 13 dead sklearn/lightgbm imports from main file
-- Main file (1.6.6.py) now contains only AudioViewer class (~2443 lines)
+- Main file (1.0.0.py) now contains only AudioViewer class (~2443 lines)
 - Updated architecture tree and test counts in README
 
 ### Fixed
@@ -46,7 +46,7 @@
 
 ### Changed
 - MLService shrunk from ~995 lines to 251 lines (74% reduction)
-- 1.6.6.py shrunk from 3711 to ~2700 lines
+- 1.0.0.py shrunk from 3711 to ~2700 lines
 - 8 import bugs fixed in extracted modules
 
 ---
@@ -83,7 +83,7 @@
 - 测试初稿：43 passed, 4 skipped
 
 ### Changed
-- 原始 `1.6.6.py` 冻结至 `legacy/1.6.6.py`，不再编辑
+- 原始 `1.0.0.py` 冻结至 `legacy/1.0.0.py`，不再编辑
 
 ---
 

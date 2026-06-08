@@ -1,7 +1,7 @@
 """Pure short-time feature computation (no PyQt / pyqtgraph dependency).
 
 Extracted from AudioViewer.compute_short_time_features and
-AudioViewer.ensure_frame_features in legacy/1.6.6.py.
+AudioViewer.ensure_frame_features in legacy/1.0.0.py.
 
 All feature definitions are preserved exactly — no formula changes.
 """

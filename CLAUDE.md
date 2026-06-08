@@ -6,7 +6,7 @@ RespAnno is an interactive respiratory sound annotation tool with ML-assisted la
 
 - **Version:** v1.0.0
 - **License:** MIT
-- **Entry point:** `1.6.6.py` (PyQt5 GUI, ~2446 lines, single class AudioViewer)
+- **Entry point:** `1.0.0.py` (PyQt5 GUI, ~2446 lines, single class AudioViewer)
 - **Backend:** `respanno/` package (~5600 lines, 34 .py files, zero GUI dependency)
 - **Tests:** 535 tests across 26 test files (534 pass, 1 skip)
 - **Test runner:** `conda run -n respanno python -m pytest tests -q`
@@ -32,7 +32,7 @@ RespAnno is an interactive respiratory sound annotation tool with ML-assisted la
 ## Architecture
 
 ```
-1.6.6.py (2446 lines, AudioViewer class only)
+1.0.0.py (2446 lines, AudioViewer class only)
   └─► respanno/
         ├── audio/preprocessing.py   — WAV loading, resampling, Butterworth filter
         ├── dsp/spectrogram.py       — STFT computation & display colorization (n_fft=256, hop=64)
@@ -63,21 +63,21 @@ RespAnno is an interactive respiratory sound annotation tool with ML-assisted la
 
 ## Refactoring Constraints (NEVER VIOLATE)
 
-- Never modify `legacy/1.6.6.py` (frozen original snapshot)
+- Never modify `legacy/1.0.0.py` (frozen original snapshot)
 - Never start GUI on Linux headless (no display)
-- Never run: `python 1.6.6.py`, `python legacy/1.6.6.py`, `python -m respanno.main`
-- Use CRLF line endings for 1.6.6.py (it's a Windows file)
+- Never run: `python 1.0.0.py`, `python legacy/1.0.0.py`, `python -m respanno.main`
+- Use CRLF line endings for 1.0.0.py (it's a Windows file)
 - Use Python scripts for large replacements (>100 lines) to avoid Edit tool issues
 
 ## Refactoring Workflow (8 steps)
 
-1. Read module API + find target methods in 1.6.6.py
+1. Read module API + find target methods in 1.0.0.py
 2. Replace method bodies with delegation calls
 3. Update tests if needed
-4. Run: `conda run -n respanno python -m py_compile 1.6.6.py`
-5. Run: `conda run -n respanno python -m py_compile legacy/1.6.6.py`
+4. Run: `conda run -n respanno python -m py_compile 1.0.0.py`
+5. Run: `conda run -n respanno python -m py_compile legacy/1.0.0.py`
 6. Run: `conda run -n respanno python -m pytest tests -q`
-7. Run: `git diff -- legacy/1.6.6.py` (must be empty)
+7. Run: `git diff -- legacy/1.0.0.py` (must be empty)
 8. Commit with descriptive message
 
 ## Keyboard Shortcuts (complete list)

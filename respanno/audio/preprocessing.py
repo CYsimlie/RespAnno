@@ -2,7 +2,7 @@
 
 Extracted from AudioViewer._apply_butter_filter_for_preprocessing,
 AudioViewer._get_load_audio_target_sr, and AudioViewer._summarize_preprocessing
-in legacy/1.6.6.py.
+in legacy/1.0.0.py.
 
 Behaviour MUST match the legacy implementation byte-for-byte where
 numpy/scipy/librosa determinism allows.

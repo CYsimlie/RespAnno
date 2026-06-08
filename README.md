@@ -78,12 +78,12 @@ and clinical studies.
 
 RespAnno follows a modular, layered architecture. The computational
 back-end (`respanno/`) is a pure Python package with zero GUI dependency;
-the graphical front-end (`1.6.6.py`) is a PyQt5 application that imports
+the graphical front-end (`1.0.0.py`) is a PyQt5 application that imports
 and delegates to the back-end modules.
 
 ```
 SoftwareX/
-├── 1.6.6.py                       # PyQt5 GUI application (main entry)
+├── 1.0.0.py                       # PyQt5 GUI application (main entry)
 ├── respanno/                       # Computational back-end (~5500 lines)
 │   ├── main.py                     # CLI launcher
 │   ├── labels/
@@ -107,7 +107,7 @@ SoftwareX/
 │       ├── spans/                  # BoxSpan, SpanLabelItem
 │       ├── views/                  # AnnotViewBox, WaveViewBox
 │       └── widgets/                # ColorBarWidget, ClickableSlider, ColorCheckDelegate
-├── legacy/1.6.6.py                 # Frozen original monolith
+├── legacy/1.0.0.py                 # Frozen original monolith
 ├── tests/                          # 427 unit & integration tests
 ├── docs/                           # Architecture & testing documentation
 ├── demo_data/                      # Example WAV + _events annotation files

@@ -30,7 +30,7 @@ def legacy_root():
 @pytest.fixture(scope="session")
 def legacy_path(legacy_root):
     """Absolute path to the legacy main program."""
-    return os.path.join(legacy_root, "1.6.6.py")
+    return os.path.join(legacy_root, "1.0.0.py")
 
 
 @pytest.fixture(scope="function")

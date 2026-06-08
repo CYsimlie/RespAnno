@@ -14,12 +14,12 @@ def main() -> None:
     # Locate the legacy main program relative to this file.
     _here = os.path.dirname(os.path.abspath(__file__))
     _root = os.path.dirname(_here)
-    _legacy = os.path.join(_root, "legacy", "1.6.6.py")
+    _legacy = os.path.join(_root, "legacy", "1.0.0.py")
 
     if not os.path.exists(_legacy):
         sys.exit(
             f"ERROR: legacy entry point not found at {_legacy}\n"
-            "Make sure the legacy/ directory contains 1.6.6.py."
+            "Make sure the legacy/ directory contains 1.0.0.py."
         )
 
     # Inject the legacy file's directory so its internal imports work.

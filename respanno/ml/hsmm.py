@@ -3,7 +3,7 @@
 Extracted from MLService._hsmm_viterbi, _build_hsmm_log_trans,
 _build_hsmm_prior_from_prefix_labels, _estimate_hop_sec,
 _estimate_breath_cycle_sec, and _state_seq_to_segments
-in legacy/1.6.6.py.
+in legacy/1.0.0.py.
 
 Zero dependency on PyQt / sklearn / LightGBM — only numpy.
 """

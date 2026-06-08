@@ -15,7 +15,7 @@ import os, re, json
 
 ROOT = r'd:\SoftwareX_win_test\New folder2\SoftwareX'
 FILES_TO_PROCESS = [
-    '1.6.6.py',
+    '1.0.0.py',
     'respanno/gui/dialogs/settings_dialog.py',
     'respanno/gui/spans/box_span.py',
     'respanno/dsp/features.py',

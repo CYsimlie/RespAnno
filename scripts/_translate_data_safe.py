@@ -8,7 +8,7 @@ CHINESE_RE = re.compile(r'[一-鿿　-〿＀-￯]')
 exec(open(os.path.join(ROOT, 'scripts/_translate_v2.py'), encoding='utf-8')
      .read().split("if __name__")[0])
 
-FILES = ['1.6.6.py', 'respanno/dsp/features.py', 'tests/test_features_basic.py']
+FILES = ['1.0.0.py', 'respanno/dsp/features.py', 'tests/test_features_basic.py']
 
 dry_run = '--write' not in sys.argv
 total = 0

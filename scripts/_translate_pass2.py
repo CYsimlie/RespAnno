@@ -1,4 +1,4 @@
-"""Pass 2: word-level re-translation for 1.6.6.py remaining Chinese.
+"""Pass 2: word-level re-translation for 1.0.0.py remaining Chinese.
 
 The file already has partial translations (CN+EN mixed). This pass applies
 individual Chinese → English word replacements aggressively to clean up
@@ -7,7 +7,7 @@ all remaining Chinese in comments and docstrings.
 import sys, re
 
 C = re.compile(r'[一-鿿　-〿＀-￯]')
-TARGET = '1.6.6.py'
+TARGET = '1.0.0.py'
 
 # Load v2 PHRASES
 exec(open('scripts/_translate_v2.py', encoding='utf-8').read().split("if __name__")[0])

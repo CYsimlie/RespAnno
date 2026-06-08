@@ -16,7 +16,7 @@
 
 ## 2. 启动
 
-- [ ] `python 1.6.6.py` 启动无报错
+- [ ] `python 1.0.0.py` 启动无报错
 - [ ] 主窗口标题包含 "Time-Frequency Analysis and Annotation"
 - [ ] 菜单栏存在 (File / Settings / Help)
 - [ ] ML 工具栏可见

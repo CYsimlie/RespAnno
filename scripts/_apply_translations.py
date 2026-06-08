@@ -15,7 +15,7 @@ ROOT = r'd:\SoftwareX_win_test\New folder2\SoftwareX'
 
 GUI_TRANSLATIONS = {
     "respanno/gui/dialogs/settings_dialog.py": {
-        "来源: 1.6.6.py 行号 79-762 (class SettingsDialog)": "Source: 1.6.6.py lines 79-762 (class SettingsDialog)",
+        "来源: 1.0.0.py 行号 79-762 (class SettingsDialog)": "Source: 1.0.0.py lines 79-762 (class SettingsDialog)",
         "# —— 新增：读取音频时的预处理设置。默认开启 4000 Hz 重采样；滤波默认关闭，避免改变旧行为。——":
             "# — New: preprocessing settings when loading audio. 4000 Hz resampling on by default; filtering off by default to preserve old behavior. —",
         "# —— 新增：自动读取同名标签文件的解析设置。默认保持旧逻辑：auto/csv/txt、_events 后缀、自动分隔符、前3列为 start/end/label。——":
@@ -658,8 +658,8 @@ TEST_TRANSLATIONS = {
     "验证帧标签构建与实际特征矩阵的维度对齐。": "Verify frame label construction aligns dimensionally with actual feature matrix.",
     "验证计算延迟在可接受范围内。": "Verify compute latency is within acceptable range.",
     "测量完整频谱显示管线（STFT→抽稀→着色）的延迟。": "Measure full spectrogram display pipeline (STFT -> decimation -> colorization) latency.",
-    "验证 legacy/1.6.6.py 不包含对 respanno 模块的引用（保持原始快照）。": "Verify legacy/1.6.6.py contains no references to respanno modules (keep original snapshot).",
-    "验证 1.6.6.py 的 AST 中包含对 respanno.annotation.io 的 import 语句。": "Verify 1.6.6.py AST contains import statements for respanno.annotation.io.",
+    "验证 legacy/1.0.0.py 不包含对 respanno 模块的引用（保持原始快照）。": "Verify legacy/1.0.0.py contains no references to respanno modules (keep original snapshot).",
+    "验证 1.0.0.py 的 AST 中包含对 respanno.annotation.io 的 import 语句。": "Verify 1.0.0.py AST contains import statements for respanno.annotation.io.",
     "生成 WAV → load+preprocess → annotate → export CSV → re-import": "Generate WAV -> load+preprocess -> annotate -> export CSV -> re-import",
 }
 
@@ -706,8 +706,8 @@ def main():
     total_changes = 0
 
     # 1. Main file
-    print("--- 1.6.6.py ---")
-    fpath = os.path.join(ROOT, '1.6.6.py')
+    print("--- 1.0.0.py ---")
+    fpath = os.path.join(ROOT, '1.0.0.py')
     n = apply_translations(fpath, MAIN_TRANSLATIONS, dry_run)
     total_files += 1
     total_changes += n

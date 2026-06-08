@@ -1,6 +1,6 @@
 import re
 C = re.compile(r'[一-鿿]')
-with open('1.6.6.py', encoding='utf-8') as f:
+with open('1.0.0.py', encoding='utf-8') as f:
     lines = f.readlines()
 for i, line in enumerate(lines, 1):
     s = line.strip()
