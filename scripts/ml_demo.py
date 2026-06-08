@@ -95,17 +95,17 @@ def main():
         duration=6.0, wheeze_start=1.5, wheeze_dur=2.5, seed=42
     )
     viewer = _build_viewer(audio, sr, anns)
-    ok = train_event_model(viewer, "wheeze", random_state=42)
+    ok = train_event_model(viewer, "Wheeze", random_state=42)
     if ok:
-        _report_model(viewer.ml_models["wheeze"], "wheeze", "Exp1")
+        _report_model(viewer.ml_models["Wheeze"], "Wheeze", "Exp1")
 
         # Show top features
-        top = viewer.ml_models["wheeze"].get("top_features_by_importance", [])
+        top = viewer.ml_models["Wheeze"].get("top_features_by_importance", [])
         if top:
             print(f"  Top features       : {', '.join(n for n, _ in top[:5])}")
 
         # Count predictions on unreviewed region
-        ok_apply = apply_event_model(viewer, "wheeze", min_dur_sec=0.05)
+        ok_apply = apply_event_model(viewer, "Wheeze", min_dur_sec=0.05)
         if ok_apply:
             print(f"  ML-predicted segs  : {len(viewer.imported)}")
 
@@ -116,7 +116,7 @@ def main():
     audio, sr, anns = generate_mixed_episode(duration=6.0, seed=42)
     viewer = _build_viewer(audio, sr, anns)
 
-    for label in ("wheeze", "crackles"):
+    for label in ("Wheeze", "Crackles"):
         ok = train_event_model(viewer, label, min_pos_frames=5, random_state=42)
         if ok:
             _report_model(viewer.ml_models[label], label, "Exp2")
@@ -128,9 +128,9 @@ def main():
     audio, sr, anns = generate_respiratory_cycle(duration=12.0, seed=42)
     viewer = _build_viewer(audio, sr, anns)
 
-    ok = train_phase_model(viewer, "inspiration", random_state=42)
+    ok = train_phase_model(viewer, "Inspiration", random_state=42)
     if ok:
-        info = viewer.ml_models["inspiration"]
+        info = viewer.ml_models["Inspiration"]
         prior = info["hsmm_prior"]
         scheme = "Three-state (Insp/Exp/Pause)" if len(info["classes"]) == 3 else "Two-state"
         print(f"  Scheme             : {scheme}")
@@ -140,7 +140,7 @@ def main():
         print(f"  dmax (frames)      : {prior['dmax_frames']}")
         print(f"  Prefix reviewed    : {info['train_prefix_sec']:.1f} s")
 
-        ok_apply = apply_phase_model(viewer, "inspiration", min_dur_sec=0.05)
+        ok_apply = apply_phase_model(viewer, "Inspiration", min_dur_sec=0.05)
         if ok_apply:
             print(f"  ML-predicted segs  : {len(viewer.imported)}")
 

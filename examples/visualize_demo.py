@@ -46,8 +46,8 @@ viewer = MockViewer(
     stft_feature_names=full_names,
     annotations=list(reviewed), sr=int(sr), hop_length=256,
 )
-train_event_model(viewer, "wheeze", min_pos_frames=2, random_state=42)
-apply_event_model(viewer, "wheeze", min_dur_sec=0.10)
+train_event_model(viewer, "Wheeze", min_pos_frames=2, random_state=42)
+apply_event_model(viewer, "Wheeze", min_dur_sec=0.10)
 
 rev   = [(a[0], a[1]) for a in reviewed]
 gt_un = [(a[0], a[1]) for a in unreviewed_gt]
@@ -131,7 +131,7 @@ h7 = mpatches.Patch(color="#9b59b6", alpha=0.85, label=f"IoU match ({matched}/{l
 ax_s.legend(handles=[h4, h5, h6, h7], loc="upper right", fontsize=9, ncol=4, framealpha=0.9)
 
 # ---- title ----
-train_f1 = viewer.ml_models["wheeze"]["train_f1"]
+train_f1 = viewer.ml_models["Wheeze"]["train_f1"]
 fig.suptitle(
     f"RespAnno v1.0.0 -- ML-Assisted Annotation Demo\n"
     f"20 s synthetic respiratory signal ({sr} Hz, SNR ~ -3 dB)  |  "
