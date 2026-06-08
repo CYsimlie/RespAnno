@@ -154,8 +154,8 @@ WAV file
 
 **Manual Annotation:**
 - Drag-to-select interval marking on a multi-lane annotation track
-- 9 built-in label presets (Wheeze, Crackles, Rhonchi, Stridor,
-  Pleural Rub, Speech, Cough, Inspiration, Expiration) with stable colors
+- 9 built-in label presets (wheeze, crackles, rhonchi, stridor,
+  pleural rub, speech, cough, inspiration, expiration) with stable colors
 - Custom label entry via dialog
 - Three-lane layout to prevent overlapping annotations from occluding
   each other
@@ -243,7 +243,7 @@ pyinstaller --onefile --windowed --name RespAnno respanno/main.py
 6. **Iteratively refine:** Delete incorrect predictions.  Use the ML
    toolbar "Clear Negatives" button to reset if needed, then re-train.
 7. **Train an ML model:** Select a label from the ML toolbar dropdown
-   (e.g., "Wheeze"), then click "Train Model". The model trains on
+   (e.g., "wheeze"), then click "Train Model". The model trains on
    all manually reviewed (annotated) frames.
 7. **Auto-label unreviewed data:** Click "Auto-label Unreviewed" to
    propagate the trained model's predictions to the remaining audio.

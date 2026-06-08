@@ -119,7 +119,7 @@ def make_demo_signal(sr=4000, duration=20.0, snr_db=-3.0, seed=42):
             ramp[-ramp_n:] = np.linspace(1, 0, ramp_n, dtype=np.float32)
         tone = (tone * ramp).astype(np.float32)
         wheeze_signal[wi:wj] += tone
-        all_annotations.append((float(ws), float(we), "Wheeze", "manual"))
+        all_annotations.append((float(ws), float(we), "wheeze", "manual"))
 
     # -- Power calibration: global white noise floor --
     # Tone RMS = noise RMS * 10^(snr/20).  At 0 dB they are equal.
@@ -185,12 +185,12 @@ def main():
         annotations=list(reviewed),
         sr=int(sr), hop_length=256,
     )
-    ok = train_event_model(viewer, "Wheeze", min_pos_frames=2, random_state=42)
+    ok = train_event_model(viewer, "wheeze", min_pos_frames=2, random_state=42)
     if not ok:
         print("    Training failed -- not enough positive samples.")
         return
 
-    info = viewer.ml_models["Wheeze"]
+    info = viewer.ml_models["wheeze"]
     print(f"    Train F1     : {info['train_f1']:.3f}")
     print(f"    Pos / Neg    : {info['n_pos']} / {info['n_neg']}")
     print(f"    Threshold    : {info['threshold']:.3f}")
@@ -198,7 +198,7 @@ def main():
     # Step 5
     print()
     print("  Step 5: Auto-label unreviewed region (last 15 s)")
-    ok_apply = apply_event_model(viewer, "Wheeze", min_dur_sec=0.10)
+    ok_apply = apply_event_model(viewer, "wheeze", min_dur_sec=0.10)
     if not ok_apply:
         print("    Auto-label returned no result.")
         return

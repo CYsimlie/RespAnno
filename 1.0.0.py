@@ -110,27 +110,27 @@ class AudioViewer(QMainWindow):
         # Annotation type and color management (built-in respiratory sound labels with corresponding colors)
         self.annotation_builtin_labels = [
             ("哮鸣音", "wheeze"),
-            ("爆裂音", "Crackles"),
-            ("摩擦音", "Pleural Rub"),
-            ("哼鸣音", "Rhonchi"),
-            ("喘息音", "Stridor"),
-            ("语音", "Speech"),
-            ("咳嗽", "Cough"),
-            ("呼气", "Expiration"),
-            ("吸气", "Inspiration"),
+            ("爆裂音", "crackles"),
+            ("摩擦音", "pleural rub"),
+            ("哼鸣音", "rhonchi"),
+            ("喘息音", "stridor"),
+            ("语音", "speech"),
+            ("咳嗽", "cough"),
+            ("呼气", "expiration"),
+            ("吸气", "inspiration"),
         ]
 
         # Fixed color mapping for built-in labels
         self.annotation_color_builtin = {
-            "Wheeze": QColor("#e41a1c"),       # 红
-            "Crackles": QColor("#377eb8"),      # 蓝
-            "Pleural Rub": QColor("#4daf4a"),   # 绿
-            "Rhonchi": QColor("#984ea3"),        # 紫
-            "Stridor": QColor("#ff7f00"),        # 橙
-            "Speech": QColor("#a65628"),          # 棕
-            "Cough": QColor("#f781bf"),           # 粉
-            "Expiration": QColor("#999999"),      # 灰
-            "Inspiration": QColor("#66c2a5"),     # 青绿
+            "wheeze": QColor("#e41a1c"),       # Red
+            "crackles": QColor("#377eb8"),      # Blue
+            "pleural rub": QColor("#4daf4a"),   # Green
+            "rhonchi": QColor("#984ea3"),        # Purple
+            "stridor": QColor("#ff7f00"),        # Orange
+            "speech": QColor("#a65628"),          # Brown
+            "cough": QColor("#f781bf"),           # Pink
+            "expiration": QColor("#999999"),      # Gray
+            "inspiration": QColor("#66c2a5"),     # Teal
         }
 
         # Auto-coloring palette for custom labels

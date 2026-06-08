@@ -366,9 +366,9 @@ register("== 10. Label Taxonomy", lambda: None)
 
 def _test_label_kind():
     from respanno.ml.label_taxonomy import label_kind, ABNORMAL_SOUND_KIND, PHASE_KIND
-    for lbl in ["Wheeze", "Crackles", "Rhonchi"]:
+    for lbl in ["wheeze", "crackles", "rhonchi"]:
         assert label_kind(lbl) == ABNORMAL_SOUND_KIND
-    for lbl in ["Inspiration", "Expiration"]:
+    for lbl in ["inspiration", "expiration"]:
         assert label_kind(lbl) == PHASE_KIND
 register("label_kind: abnormal / phase routing correct", _test_label_kind)
 
