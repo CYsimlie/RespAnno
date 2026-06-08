@@ -100,7 +100,9 @@ RespAnno is an interactive respiratory sound annotation tool with ML-assisted la
 | F1 | About |
 | Ctrl+Q | Exit |
 
-## Test Suite (454 tests, 23 files)
+## Test Suite (535 tests, 26 files)
+
+535 collected, 534 pass, 1 skip (LoopPlayer: requires sounddevice/PortAudio).
 
 ### Golden Value Tests (physical ground-truth, all verified)
 - Spectrogram: 500/1000 Hz sine sweep time-frequency localization
@@ -117,11 +119,11 @@ RespAnno is an interactive respiratory sound annotation tool with ML-assisted la
 - 3 modules rated ⭐⭐⭐☆☆: gui_static_integration (AST-only), performance_baseline (env-sensitive), icbhi_compatibility (naming only)
 
 ### Known Test Gaps (functional coverage)
-1. MLService dispatcher routing — zero tests for the central pipeline router
-2. Annotation CRUD semantics — undo/redo cycle with negative samples
-3. Multi-lane layout (_pick_lane) — 3-lane collision avoidance algorithm
-4. Hard negative feedback effectiveness — delete→retrain→improved predictions
-5. All GUI modules — require PyQt5, manual testing only
+1. ~~MLService dispatcher routing~~ — **CLOSED** (test_ml_service_basic.py: 25 tests, 96% coverage)
+2. Annotation CRUD semantics — undo/redo cycle with negative samples (partial: test_negatives_basic.py covers CRUD; full undo/redo cycle not tested)
+3. Multi-lane layout (_pick_lane) — 3-lane collision avoidance algorithm (GUI manual testing only)
+4. Hard negative feedback effectiveness — delete→retrain→improved predictions (partial: NegSampleManager tested; E2E feedback loop not tested)
+5. All GUI modules — 33 headless widget tests added; BoxSpan (~618 lines) still requires manual testing
 
 ## SoftwareX Submission Status
 
@@ -135,10 +137,7 @@ RespAnno is an interactive respiratory sound annotation tool with ML-assisted la
 - ✅ GitHub Actions CI config (.github/workflows/test.yml)
 
 ### Pending (user action required)
-- ⏳ Author full name in LICENSE, pyproject.toml, CITATION.cff (currently "C.Y.Pan")
-- ⏳ Real email address (currently placeholder)
 - ⏳ Screenshots in screenshots/ directory
 - ⏳ Examples in examples/ directory
 - ⏳ Zenodo DOI (archive before submission)
-- ⏳ Cross-platform testing (Windows/macOS)
-- ⏳ Comparison experiments with Audacity/ELAN for paper
+- ⏳ Cross-platform GUI testing (Windows done; macOS/Linux pending)

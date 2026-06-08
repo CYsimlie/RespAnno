@@ -3,26 +3,41 @@
 ## Overview
 
 RespAnno is a respiratory sound annotation tool built with PyQt5 + pyqtgraph +
-librosa + scipy + LightGBM.  The codebase is being progressively modularised
-from a single 6600-line legacy file into a maintainable package structure.
+librosa + scipy + LightGBM.  The codebase has been modularised from a single
+6600-line legacy file into a maintainable package structure.
 
-## Current Architecture
+## Current Architecture (v1.0.0)
 
 ```
-respanno/
-├── main.py                 # Entry point → launches legacy AudioViewer
-├── labels/
-│   └── annotation_io.py    # Pure I/O: CSV/TXT/JSON read/write, row parsing
-├── audio/
-│   └── preprocessing.py    # Butterworth filtering, config validation, metadata
-├── dsp/
-│   ├── spectrogram.py      # STFT computation, display decimation, colourisation
-│   └── features.py         # 56 short-time features (time + spectral + COR)
-└── ml/
-    └── hsmm.py             # HSMM Viterbi decoder, duration priors, transitions
-
-legacy/
-└── 1.0.0.py                # Frozen original single-file program (no longer edited)
+1.0.0.py                       # PyQt5 GUI entry point (~2446 lines)
+  |
+  +-- respanno/                # Computational back-end (~3900 lines)
+  |   ├── main.py              # CLI launcher
+  |   ├── audio/
+  |   │   └── preprocessing.py # Butterworth filtering, resampling, config
+  |   ├── dsp/
+  |   │   ├── spectrogram.py   # STFT computation, display colourisation
+  |   │   ├── fft.py           # FFT magnitude spectrum
+  |   │   └── features.py      # 56 short-time features
+  |   ├── ml/
+  |   │   ├── service.py       # ML pipeline dispatcher
+  |   │   ├── classifier.py    # LightGBM binary event classifier
+  |   │   ├── phase_model.py   # HSMM-based respiratory phase model
+  |   │   ├── hsmm.py          # HSMM Viterbi decoder, duration priors
+  |   │   ├── label_taxonomy.py# Label-to-pipeline routing
+  |   │   ├── frame_labels.py  # Frame-level training label builder
+  |   │   └── negatives.py     # Hard-negative sample manager
+  |   ├── labels/
+  |   │   ├── annotation_io.py # CSV/TXT/JSON read & write
+  |   │   └── events_importer.py# Auto-import matching _events files
+  |   └── gui/                 # Reusable PyQt5 components
+  |       ├── dialogs/         # SettingsDialog, LoopPlayer, AnnotationLabelDialog
+  |       ├── spans/           # BoxSpan, SpanLabelItem
+  |       ├── views/           # AnnotViewBox, WaveViewBox
+  |       └── widgets/         # ColorBarWidget, ClickableSlider, ColorCheckDelegate
+  |
+  +-- legacy/1.0.0.py          # Frozen original single-file program (unmodified)
+  +-- tests/                   # 535 tests, 26 files, 534 pass, 1 skip
 ```
 
 ## Data Flow

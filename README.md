@@ -23,7 +23,7 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 | C6  | Software code languages, tools, and services used | Python, NumPy, SciPy, librosa, scikit-learn, LightGBM |
 | C7  | Compilation requirements, operating environments & dependencies | see [§ Dependencies](#dependencies) |
 | C8  | Link to developer documentation / manual | see [§ Usage](#usage) |
-| C9  | Support email for questions | chaoyuepan@example.com |
+| C9  | Support email for questions | 13145342435@163.com |
 
 ## Software Metadata
 
@@ -108,7 +108,7 @@ SoftwareX/
 │       ├── views/                  # AnnotViewBox, WaveViewBox
 │       └── widgets/                # ColorBarWidget, ClickableSlider, ColorCheckDelegate
 ├── legacy/1.0.0.py                 # Frozen original monolith
-├── tests/                          # 427 unit & integration tests
+├── tests/                          # 535 unit & integration tests
 ├── docs/                           # Architecture & testing documentation
 ├── demo_data/                      # Example WAV + _events annotation files
 └── screenshots/                    # UI screenshots
@@ -291,8 +291,7 @@ pyinstaller --onefile --windowed --name RespAnno respanno/main.py
 
 ## Testing
 
-The project has **427 tests** across 21 test modules. All pass on every
-commit.
+The project has **535 tests** across 26 test modules (534 pass, 1 skip). All pass on every commit.
 
 ```bash
 # Run the full test suite
@@ -306,42 +305,51 @@ Test coverage includes:
 
 | Test module | Tests | Scope |
 |-------------|-------|-------|
-| `test_module_imports` | 82 | Package importability & public symbols |
+| `test_module_imports` | 5 | Module importability verification |
 | `test_annotation_roundtrip` | 43 | CSV/TXT/JSON I/O roundtrip fidelity |
-| `test_label_taxonomy_basic` | 48 | Label-to-pipeline routing (phase/event/abnormal) |
-| `test_preprocessing_basic` | 26 | Filtering, config validation |
-| `test_gui_static_integration` | 26 | AST-level GUI import verification |
-| `test_annotation_quality` | 20 | Source provenance, dedup, fixture integrity |
+| `test_gui_widgets_headless` | 33 | Headless PyQt5 widget tests (7 widgets) |
+| `test_preprocessing_basic` | 30 | Filtering, config validation, golden values |
+| `test_ml_service_basic` | 25 | MLService dispatcher routing (train/apply/clear) |
+| `test_negatives_basic` | 23 | NegSampleManager CRUD operations |
+| `test_annotation_quality` | 21 | Source provenance, dedup, fixture integrity |
+| `test_spectrogram_basic` | 21 | STFT, decimation, colorization, golden values |
+| `test_gui_static_integration` | 20 | AST-level GUI import verification |
 | `test_frame_labels_basic` | 19 | Frame-level training label builder |
+| `test_features_basic` | 19 | Short-time feature computation + golden values |
 | `test_hsmm_basic` | 18 | HSMM prior building & Viterbi decoding |
-| `test_spectrogram_basic` | 19 | STFT, decimation, colorization |
-| `test_features_basic` | 15 | Short-time feature computation |
 | `test_events_importer_basic` | 15 | WAV-matched events auto-import |
+| `test_reproducibility` | 15 | Full-pipeline + cross-process determinism |
 | `test_classifier_training_basic` | 13 | LightGBM binary classifier training |
 | `test_fft_basic` | 12 | FFT magnitude computation |
-| `test_reproducibility` | 12 | Full-pipeline determinism verification |
 | `test_phase_model_basic` | 12 | HSMM phase model training (2/3-state) |
-| `test_performance_baseline` | 9 | Throughput, latency, memory baselines |
+| `test_performance_baseline` | 9 | Throughput, latency, memory (report-only) |
+| `test_roundtrip_workflow` | 9 | WAV → preprocess → annotate → export → re-import |
 | `test_e2e_ml_pipeline` | 8 | End-to-end: audio → features → train → predict |
 | `test_phase_apply_basic` | 8 | HSMM Viterbi decoding & segment generation |
 | `test_classifier_apply_basic` | 7 | ML inference, dedup, min-dur filtering |
+| `test_label_taxonomy_basic` | 8 | Label-to-pipeline routing (phase/event/abnormal) |
 | `test_icbhi_compatibility` | 6 | ICBHI 2017 format & naming conventions |
-| `test_roundtrip_workflow` | 4 | WAV → preprocess → annotate → export → re-import |
+
+**Disclaimer:** These tests demonstrate functional correctness, file-format
+robustness, and reproducibility of the software infrastructure. They should
+**not** be interpreted as clinical performance validation or as a substitute
+for independent detection model evaluation. ML-assisted annotation produces
+**candidate suggestions** that require human review.
 
 ---
 
 ## Project Status
 
-The codebase is in an active modularization phase. The original 6600-line
-monolith has been progressively refactored into a maintainable package:
+v1.0.0 is the first public release. All components have been extracted from
+the original monolith into a modular architecture:
 
-| Phase | Status | Description |
-|-------|--------|-------------|
-| 1     | Done   | Annotation IO + audio preprocessing modules extracted |
-| 2     | Done   | DSP modules extracted (spectrogram, features, FFT) + HSMM utilities |
-| 3     | Done   | ML pipeline extracted (label_taxonomy, phase_model, classifier, frame_labels) |
-| 4     | Done   | 9 GUI widget classes extracted to `respanno/gui/` subpackages |
-| 5     | Done   | MLService dispatcher extracted + SettingsDialog decoupled + 427 tests |
+| Component | Status |
+|-----------|--------|
+| Backend package (`respanno/`) | ✅ Complete |
+| GUI entry point (`1.0.0.py`) | ✅ Complete |
+| ML pipeline (LightGBM + HSMM) | ✅ Complete |
+| Test suite (535 tests, 26 files) | ✅ Complete |
+| CI/CD (3 OS x 3 Python) | ✅ Active |
 
 ---
 

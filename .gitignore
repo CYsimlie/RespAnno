@@ -1,23 +1,40 @@
+# Bytecode
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
+# Test artifacts
 .pytest_cache/
+.coverage*
+coverage.xml
+htmlcov/
+
+# Notebooks
 .ipynb_checkpoints/
 
+# Virtual environments
 .env
 .venv/
 venv/
 env/
 
+# Build artifacts
 dist/
 build/
 *.spec
 
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and temp
 *.log
 *.tmp
 
+# OS files
 .DS_Store
 Thumbs.db
 

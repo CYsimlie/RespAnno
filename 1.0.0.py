@@ -2175,7 +2175,7 @@ class AudioViewer(QMainWindow):
 
     def show_about_dialog(self):
         QMessageBox.information(self, "About",
-                                "Audio Annotator v1.0\nAuthor: C.Y.Pan\nBuilt with PyQt5 + pyqtgraph\nCurrently only .wav files are supported. Please convert other file types to .wav.")
+                                "RespAnno v1.0.0\nAuthor: Chaoyue Pan\nBuilt with PyQt5 + pyqtgraph\nCurrently only .wav files are supported. Please convert other file types to .wav.")
 
     def compute_short_time_features(self):
         """Compute all short-time features, delegating to features module.
