@@ -546,6 +546,22 @@ class AudioViewer(QMainWindow):
         self.action_annotation_legend = action_legend
 
     # ===== Toolbar slot functions =====
+    def _get_current_ml_label(self):
+        """Return the label currently selected in the ML combo box.
+
+        Reads directly from the widget so that Ctrl+T / Ctrl+M always use
+        the label the user is seeing, regardless of signal timing.
+        """
+        combo = getattr(self, "ml_label_combo", None)
+        if combo is None:
+            return None
+        text = combo.currentText()
+        if not text:
+            return None
+        # Keep the stored attribute in sync for other consumers
+        self.current_ml_label = text
+        return text
+
     def on_ml_label_changed(self, text):
         """Update the current ML operation target when the combo-box label changes."""
         self.current_ml_label = text
@@ -553,7 +569,7 @@ class AudioViewer(QMainWindow):
 
     def on_ml_train_clicked(self):
         """Train button: train a frame-level model for the currently selected label."""
-        label = getattr(self, "current_ml_label", None)
+        label = self._get_current_ml_label()
         if not label:
             QMessageBox.information(self, "Machine Learning", "Please select a label in the toolbar first.")
             return
@@ -561,7 +577,7 @@ class AudioViewer(QMainWindow):
 
     def on_ml_auto_clicked(self):
         """Auto-label button: use the trained model to auto-label unreviewed regions for the current label."""
-        label = getattr(self, "current_ml_label", None)
+        label = self._get_current_ml_label()
         if not label:
             QMessageBox.information(self, "Auto Annotation", "Please select a label in the toolbar first.")
             return
@@ -569,7 +585,7 @@ class AudioViewer(QMainWindow):
 
     def on_clear_negatives_clicked(self):
         """Clear all hard negative samples for the current label."""
-        label = getattr(self, "current_ml_label", None)
+        label = self._get_current_ml_label()
         if not label:
             QMessageBox.information(self, "Clear Negatives", "Please select a label in the toolbar first.")
             return
@@ -593,7 +609,7 @@ class AudioViewer(QMainWindow):
 
     def _update_neg_count_tip(self):
         """Update the Clear Negatives button tooltip to show the current label's negative sample count."""
-        label = getattr(self, "current_ml_label", None)
+        label = self._get_current_ml_label()
         cnt = self.neg_manager.count(label) if label else 0
         act = getattr(self, "action_clear_neg", None)
         if act is not None:
