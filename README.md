@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10-blue)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![CI](https://github.com/CYsimlie/RespAnno/actions/workflows/test.yml/badge.svg)](https://github.com/CYsimlie/RespAnno/actions/workflows/test.yml)
+[![CI](https://github.com/CYsimlie/RespAnno/actions/workflows/ci.yml/badge.svg)](https://github.com/CYsimlie/RespAnno/actions/workflows/ci.yml)
 
 **RespAnno** is an open-source, interactive annotation tool for respiratory
 sound analysis. It provides a complete pipeline from audio preprocessing and

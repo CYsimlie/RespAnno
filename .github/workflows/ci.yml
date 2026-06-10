@@ -1,4 +1,4 @@
-name: Tests
+name: CI
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: ${{ matrix.os }} / Python 3.10
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -18,25 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Conda
-        uses: conda-incubator/setup-miniconda@v3
+      - uses: conda-incubator/setup-miniconda@v3
         with:
           environment-file: environment.yml
           activate-environment: respanno-test
 
-      - name: Verify environment
-        shell: bash -el {0}
-        run: |
-          python -c "import numpy; print('numpy', numpy.__version__)"
-          python -c "import scipy; print('scipy', scipy.__version__)"
-          python -c "import sklearn; print('sklearn', sklearn.__version__)"
-          python -c "import lightgbm; print('lightgbm', lightgbm.__version__)"
-
-      - name: Install dev dependencies
+      - name: Install test dependencies
         shell: bash -el {0}
         run: pip install pytest-cov pytest-timeout
 
-      - name: Run tests with coverage
+      - name: Run tests
         shell: bash -el {0}
         run: python -m pytest tests -q --tb=short --cov=respanno --cov-report=term --cov-report=xml --timeout=300
 
