@@ -21,10 +21,10 @@ jobs:
       - name: Set up Conda
         uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: "3.10"
           environment-file: environment.yml
           activate-environment: respanno-test
           auto-activate-base: false
+          conda-solver: libmamba
 
       - name: Verify environment
         shell: bash -el {0}
