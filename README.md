@@ -33,7 +33,7 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 | S2  | Permanent link to executables of this version | (via PyInstaller, see [§ Installation](#installation)) |
 | S3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
 | S4  | Legal Software License       | MIT            |
-| S5  | Computing platforms / Operating Systems | Windows 10+, Linux (X11/Wayland), macOS 11+ |
+| S5  | Computing platforms / Operating Systems | Windows 10+ (GUI tested); Ubuntu/macOS (CI-verified, no manual GUI tests) |
 | S6  | Installation requirements & dependencies | conda env or pip, see [§ Installation](#installation) |
 | S7  | Link to user manual          | see [§ Usage](#usage) and [§ Workflow](#typical-workflow) |
 
@@ -371,7 +371,7 @@ the original monolith into a modular architecture:
 | GUI entry point (`1.0.0.py`) | ✅ Complete |
 | ML pipeline (LightGBM + HSMM) | ✅ Complete |
 | Test suite (535 tests, 24 files) | ✅ Complete |
-| CI/CD (3 OS x 3 Python) | ✅ Active |
+| CI/CD (3 OS × Python 3.10) | ✅ Active |
 
 ---
 

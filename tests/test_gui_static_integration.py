@@ -141,7 +141,7 @@ def test_ml_functions_reachable_via_service():
     import os
     service_path = os.path.join(
         os.path.dirname(__file__), '..', 'respanno', 'ml', 'service.py')
-    with open(service_path) as f:
+    with open(service_path, encoding='utf-8') as f:
         svc_src = f.read()
 
     required = {
