@@ -17,6 +17,13 @@ Usage:
 
 import os
 import sys
+
+# Ensure stdout uses UTF-8 on Windows CI (avoids cp1252 errors on Chinese chars)
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
