@@ -306,57 +306,35 @@ conda run -n respanno-test python -m pytest tests/test_hsmm_basic.py -v
 
 | Test module | Tests | Scope |
 |-------------|-------|-------|
-| `test_module_imports` | 82 | Module importability, public API symbols, no-GUI-dependency verification |
-| `test_label_taxonomy_basic` | 52 | Label-to-pipeline routing: phase (17), other_event (21), abnormal_sound (11), edge cases (3) |
-| `test_annotation_roundtrip` | 43 | CSV/TXT/JSON I/O: normalize, parse, delimiter detection, column mapping, auto-detection |
-| `test_gui_widgets_headless` | 37 | Headless PyQt5 tests: SettingsDialog, ClickableSlider, ColorCheckDelegate, SpanLabelItem, LoopPlayer, AnnotationLabelDialog, ViewBoxes |
-| `test_ml_service_basic` | 36 | MLService dispatcher: label routing (12), train dispatch (5), apply dispatch (4), clear dispatch (1), HSMM helpers (7), E2E (3) |
-| `test_preprocessing_basic` | 30 | Config validation, Butterworth filter (4 modes), resampling, WAV loading, golden values (4) |
-| `test_negatives_basic` | 23 | NegSampleManager full lifecycle: add, remove, count, get, clear, serialization, edge cases |
-| `test_annotation_quality` | 21 | Normalize invariants, CSV/JSON roundtrip, source provenance, overlap ratio, fixture readability |
-| `test_spectrogram_basic` | 21 | STFT computation, decimation, Heatmap/Grayscale palette, colorization, full pipeline, golden values |
-| `test_gui_static_integration` | 20 | AST-level verification: GUI→backend imports, MLService/BoxSpan integrity, legacy unchanged |
-| `test_features_basic` | 19 | 56-feature inventory, frame_signal shapes, normalization, energy/ZCR bounds, golden values (4) |
-| `test_frame_labels_basic` | 19 | Reviewed annotation iterator, manual segment extraction, prefix computation, frame label builder with hard negatives |
-| `test_hsmm_basic` | 18 | Hop/breath-cycle estimation, 2/3-state log-trans, Viterbi decoding, priors, state_seq→segments |
-| `test_events_importer_basic` | 15 | Events file resolution, index building, mtime-aware cache, auto-import, default config |
-| `test_reproducibility` | 15 | Preprocessing/FFT/STFT/features/frame-labels/HSMM determinism, cross-process hash consistency |
-| `test_classifier_training_basic` | 13 | LightGBM training: preconditions, success path, model info, metrics, feature selection, determinism |
-| `test_fft_basic` | 12 | FFT magnitude: tone peak accuracy, max_points reduction, full boundary coverage (7 edge cases) |
-| `test_phase_model_basic` | 12 | 2-state (Insp-only/Exp-only), 3-state (with Pause), HSMM priors, determinism |
-| `test_performance_baseline` | 9 | Throughput/latency benchmarks (Butterworth, STFT, FFT, features), memory footprint (report-only) |
-| `test_roundtrip_workflow` | 9 | End-to-end: WAV→preprocess→annotate→export→re-import, all formats, numeric precision |
-| `test_e2e_ml_pipeline` | 8 | Full ML pipeline: synthetic audio→features→train→predict→segments, determinism, edge cases |
-| `test_phase_apply_basic` | 8 | HSMM inference: preconditions, Inspiration/Expiration label routing, missing-prior rejection |
-| `test_classifier_apply_basic` | 7 | Classifier inference: preconditions, segment generation, min-dur filtering, dedup vs. manual |
-| `test_icbhi_compatibility` | 6 | ICBHI 2017: tab-format loading, full label set, mixed-case, naming conventions, events suffix |
+| `test_module_imports` | 82 | Module importability, public APIs, no-GUI-dependency verification |
+| `test_label_taxonomy_basic` | 52 | Label-to-pipeline routing (phase, other_event, abnormal_sound) |
+| `test_annotation_roundtrip` | 43 | CSV/TXT/JSON I/O: parse, write, roundtrip, delimiter detection |
+| `test_gui_widgets_headless` | 37 | PyQt5 headless tests: SettingsDialog, ClickableSlider, ViewBoxes etc. |
+| `test_ml_service_basic` | 36 | MLService train/apply/clear dispatch routing |
+| `test_preprocessing_basic` | 30 | Butterworth filter, resampling, golden-value validation |
+| `test_negatives_basic` | 23 | Hard-negative sample manager lifecycle |
+| `test_annotation_quality` | 21 | Annotation invariants, source provenance, overlap ratio |
+| `test_spectrogram_basic` | 21 | STFT computation, decimation, color palette, golden values |
+| `test_gui_static_integration` | 20 | AST-level GUI—backend coupling verification |
+| `test_features_basic` | 19 | 56 short-time features, physical golden-value tests |
+| `test_frame_labels_basic` | 19 | Frame-level training label builder with hard negatives |
+| `test_hsmm_basic` | 18 | HSMM transition matrices, Viterbi decoding, priors |
+| `test_events_importer_basic` | 15 | WAV-matched `_events` file auto-import |
+| `test_reproducibility` | 15 | Full-pipeline determinism, cross-process hash consistency |
+| `test_classifier_training_basic` | 13 | LightGBM training preconditions, metrics, determinism |
+| `test_fft_basic` | 12 | FFT magnitude spectrum, full boundary coverage |
+| `test_phase_model_basic` | 12 | 2/3-state HSMM phase model training |
+| `test_performance_baseline` | 9 | Throughput and memory benchmarks (report-only) |
+| `test_roundtrip_workflow` | 9 | E2E: WAV → preprocess → annotate → export → re-import |
+| `test_e2e_ml_pipeline` | 8 | Full ML pipeline on synthetic data |
+| `test_phase_apply_basic` | 8 | HSMM inference preconditions and label routing |
+| `test_classifier_apply_basic` | 7 | Classifier inference, segment generation, dedup |
+| `test_icbhi_compatibility` | 6 | ICBHI 2017 format and naming conventions |
 
-### Test Quality
-
-| Quality dimension | Assessment |
-|-------------------|------------|
-| Docstring coverage | 329/329 test functions (100%) |
-| Golden-value tests | 7 physical ground-truth tests (spectrogram, features, preprocessing) — all verified |
-| Determinism coverage | 15 tests across preprocessing, DSP, ML, synthetic signals, cross-process |
-| Boundary coverage | FFT (7 edge cases), Butterworth filter (invalid ranges, short signal, Nyquist clamp) |
-| ⭐⭐⭐⭐⭐ modules | module_imports, label_taxonomy, negatives, fft_basic, reproducibility |
-| ⭐⭐⭐☆☆ modules | gui_static_integration (AST-only), performance_baseline (env-sensitive), icbhi_compatibility (naming only) |
-
-### Known Test Gaps
-
-| Gap | Status |
-|-----|--------|
-| MLService dispatcher routing | ✅ Closed — 36 tests, full dispatch coverage |
-| Annotation CRUD undo/redo cycle with negative samples | ⚠️ Partial — NegSampleManager CRUD covered; full undo/redo cycle not tested |
-| Multi-lane layout (`_pick_lane`) collision avoidance | ⚠️ GUI manual testing only |
-| Hard negative feedback loop (delete→retrain→improved predictions) | ⚠️ Partial — NegSampleManager tested; end-to-end feedback loop not tested |
-| All GUI modules | ⚠️ 37 headless tests added; BoxSpan (~618 lines) still requires manual testing |
-
-**Disclaimer:** These tests demonstrate functional correctness, file-format
-robustness, and reproducibility of the software infrastructure. They should
-**not** be interpreted as clinical performance validation or as a substitute
-for independent detection model evaluation. ML-assisted annotation produces
-**candidate suggestions** that require human review.
+**Disclaimer:** These tests validate functional correctness, file-format robustness,
+and computational reproducibility. They do **not** constitute clinical performance
+validation or replace independent evaluation of detection models. ML-assisted
+annotations are **candidate suggestions** requiring human review.
 
 ---
 
