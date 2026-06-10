@@ -30,6 +30,10 @@ build/
 *.swp
 *.swo
 
+# Claude Code
+CLAUDE.md
+.claude/
+
 # Logs and temp
 *.log
 *.tmp

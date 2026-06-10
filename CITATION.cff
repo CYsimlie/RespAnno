@@ -9,8 +9,8 @@ authors:
     given-names: Chaoyue
     email: 13145342435@163.com
     orcid: ''
-repository-code: 'https://github.com/chaoyuepan/RespAnno'
-url: 'https://github.com/chaoyuepan/RespAnno'
+repository-code: 'https://github.com/CYsimlie/RespAnno'
+url: 'https://github.com/CYsimlie/RespAnno'
 abstract: >-
   RespAnno is an open-source, interactive annotation tool for respiratory
   sound analysis. It provides a complete pipeline from audio preprocessing

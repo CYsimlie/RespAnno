@@ -48,8 +48,9 @@ def _iter_reviewed_annotations(annotations):
 def get_manual_segments(annotations, label):
     """Return [(s, e), ...] for reviewed annotations matching `label`."""
     segs = []
+    _lab_low = str(label).strip().lower()
     for s, e, t in _iter_reviewed_annotations(annotations):
-        if t == label:
+        if str(t).strip().lower() == _lab_low:
             segs.append((s, e))
     return segs
 
@@ -117,7 +118,13 @@ def build_frame_labels(
 
     # 3.5) hard negative segments (from deletions/corrections)
     if neg_segments:
-        neg_list = neg_segments.get(label, [])
+        # Case-insensitive lookup in neg_segments dict
+        _lab_low = str(label).strip().lower()
+        neg_list = []
+        for _nk, _nv in neg_segments.items():
+            if str(_nk).strip().lower() == _lab_low:
+                neg_list = _nv
+                break
         if neg_list:
             for it in neg_list:
                 try:

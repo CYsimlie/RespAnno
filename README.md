@@ -1,8 +1,8 @@
 # RespAnno — An Interactive Respiratory Sound Annotation Tool with ML-Assisted Labeling
 
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.10-blue)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-535%20passed-brightgreen)](./tests)
+[![CI](https://github.com/CYsimlie/RespAnno/actions/workflows/test.yml/badge.svg)](https://github.com/CYsimlie/RespAnno/actions/workflows/test.yml)
 
 **RespAnno** is an open-source, interactive annotation tool for respiratory
 sound analysis. It provides a complete pipeline from audio preprocessing and
@@ -16,7 +16,7 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 | Nr. | Code metadata description | Please fill in |
 |-----|---------------------------|----------------|
 | C1  | Current code version      | v1.0.0         |
-| C2  | Permanent link to code / repository used for this code version | https://github.com/chaoyuepan/RespAnno |
+| C2  | Permanent link to code / repository used for this code version | https://github.com/CYsimlie/RespAnno |
 | C3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
 | C4  | Legal Code License        | MIT            |
 | C5  | Code versioning system used | git            |
@@ -191,13 +191,13 @@ WAV file
 
 ### Prerequisites
 
-- Python ≥ 3.9
+- Python = 3.10
 - conda (recommended) or pip
 
 ### From Source
 
 ```bash
-git clone https://github.com/chaoyuepan/RespAnno.git
+git clone https://github.com/CYsimlie/RespAnno.git
 cd RespAnno
 
 # Using conda (recommended)
@@ -210,7 +210,7 @@ source .venv/bin/activate   # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
 
 # Launch the application
-conda run -n respanno python -m respanno.main
+conda run -n respanno-test python -m respanno.main
 ```
 
 ### Packaged Executable (Windows)
@@ -277,7 +277,7 @@ pyinstaller --onefile --windowed --name RespAnno respanno/main.py
 
 | Package | Minimum Version | Purpose |
 |---------|----------------|---------|
-| Python  | 3.9            | Runtime |
+| Python  | 3.10           | Runtime |
 | PyQt5   | 5.15           | GUI framework |
 | pyqtgraph | 0.13         | Interactive scientific plots |
 | NumPy   | 1.21           | Numerical arrays |
@@ -291,44 +291,66 @@ pyinstaller --onefile --windowed --name RespAnno respanno/main.py
 
 ## Testing
 
-The project has **535 tests** across 26 test modules (534 pass, 1 skip). All pass on every commit.
+The project has **535 tests** across 24 test modules (534 pass, 1 skip).
+All tests pass on every commit.
 
 ```bash
 # Run the full test suite
-conda run -n respanno python -m pytest tests -q
+conda run -n respanno-test python -m pytest tests -q
 
 # Run a specific test file
-conda run -n respanno python -m pytest tests/test_hsmm_basic.py -v
+conda run -n respanno-test python -m pytest tests/test_hsmm_basic.py -v
 ```
 
-Test coverage includes:
+### Test Suite by Module
 
 | Test module | Tests | Scope |
 |-------------|-------|-------|
-| `test_module_imports` | 5 | Module importability verification |
-| `test_annotation_roundtrip` | 43 | CSV/TXT/JSON I/O roundtrip fidelity |
-| `test_gui_widgets_headless` | 33 | Headless PyQt5 widget tests (7 widgets) |
-| `test_preprocessing_basic` | 30 | Filtering, config validation, golden values |
-| `test_ml_service_basic` | 25 | MLService dispatcher routing (train/apply/clear) |
-| `test_negatives_basic` | 23 | NegSampleManager CRUD operations |
-| `test_annotation_quality` | 21 | Source provenance, dedup, fixture integrity |
-| `test_spectrogram_basic` | 21 | STFT, decimation, colorization, golden values |
-| `test_gui_static_integration` | 20 | AST-level GUI import verification |
-| `test_frame_labels_basic` | 19 | Frame-level training label builder |
-| `test_features_basic` | 19 | Short-time feature computation + golden values |
-| `test_hsmm_basic` | 18 | HSMM prior building & Viterbi decoding |
-| `test_events_importer_basic` | 15 | WAV-matched events auto-import |
-| `test_reproducibility` | 15 | Full-pipeline + cross-process determinism |
-| `test_classifier_training_basic` | 13 | LightGBM binary classifier training |
-| `test_fft_basic` | 12 | FFT magnitude computation |
-| `test_phase_model_basic` | 12 | HSMM phase model training (2/3-state) |
-| `test_performance_baseline` | 9 | Throughput, latency, memory (report-only) |
-| `test_roundtrip_workflow` | 9 | WAV → preprocess → annotate → export → re-import |
-| `test_e2e_ml_pipeline` | 8 | End-to-end: audio → features → train → predict |
-| `test_phase_apply_basic` | 8 | HSMM Viterbi decoding & segment generation |
-| `test_classifier_apply_basic` | 7 | ML inference, dedup, min-dur filtering |
-| `test_label_taxonomy_basic` | 8 | Label-to-pipeline routing (phase/event/abnormal) |
-| `test_icbhi_compatibility` | 6 | ICBHI 2017 format & naming conventions |
+| `test_module_imports` | 82 | Module importability, public API symbols, no-GUI-dependency verification |
+| `test_label_taxonomy_basic` | 52 | Label-to-pipeline routing: phase (17), other_event (21), abnormal_sound (11), edge cases (3) |
+| `test_annotation_roundtrip` | 43 | CSV/TXT/JSON I/O: normalize, parse, delimiter detection, column mapping, auto-detection |
+| `test_gui_widgets_headless` | 37 | Headless PyQt5 tests: SettingsDialog, ClickableSlider, ColorCheckDelegate, SpanLabelItem, LoopPlayer, AnnotationLabelDialog, ViewBoxes |
+| `test_ml_service_basic` | 36 | MLService dispatcher: label routing (12), train dispatch (5), apply dispatch (4), clear dispatch (1), HSMM helpers (7), E2E (3) |
+| `test_preprocessing_basic` | 30 | Config validation, Butterworth filter (4 modes), resampling, WAV loading, golden values (4) |
+| `test_negatives_basic` | 23 | NegSampleManager full lifecycle: add, remove, count, get, clear, serialization, edge cases |
+| `test_annotation_quality` | 21 | Normalize invariants, CSV/JSON roundtrip, source provenance, overlap ratio, fixture readability |
+| `test_spectrogram_basic` | 21 | STFT computation, decimation, Heatmap/Grayscale palette, colorization, full pipeline, golden values |
+| `test_gui_static_integration` | 20 | AST-level verification: GUI→backend imports, MLService/BoxSpan integrity, legacy unchanged |
+| `test_features_basic` | 19 | 56-feature inventory, frame_signal shapes, normalization, energy/ZCR bounds, golden values (4) |
+| `test_frame_labels_basic` | 19 | Reviewed annotation iterator, manual segment extraction, prefix computation, frame label builder with hard negatives |
+| `test_hsmm_basic` | 18 | Hop/breath-cycle estimation, 2/3-state log-trans, Viterbi decoding, priors, state_seq→segments |
+| `test_events_importer_basic` | 15 | Events file resolution, index building, mtime-aware cache, auto-import, default config |
+| `test_reproducibility` | 15 | Preprocessing/FFT/STFT/features/frame-labels/HSMM determinism, cross-process hash consistency |
+| `test_classifier_training_basic` | 13 | LightGBM training: preconditions, success path, model info, metrics, feature selection, determinism |
+| `test_fft_basic` | 12 | FFT magnitude: tone peak accuracy, max_points reduction, full boundary coverage (7 edge cases) |
+| `test_phase_model_basic` | 12 | 2-state (Insp-only/Exp-only), 3-state (with Pause), HSMM priors, determinism |
+| `test_performance_baseline` | 9 | Throughput/latency benchmarks (Butterworth, STFT, FFT, features), memory footprint (report-only) |
+| `test_roundtrip_workflow` | 9 | End-to-end: WAV→preprocess→annotate→export→re-import, all formats, numeric precision |
+| `test_e2e_ml_pipeline` | 8 | Full ML pipeline: synthetic audio→features→train→predict→segments, determinism, edge cases |
+| `test_phase_apply_basic` | 8 | HSMM inference: preconditions, Inspiration/Expiration label routing, missing-prior rejection |
+| `test_classifier_apply_basic` | 7 | Classifier inference: preconditions, segment generation, min-dur filtering, dedup vs. manual |
+| `test_icbhi_compatibility` | 6 | ICBHI 2017: tab-format loading, full label set, mixed-case, naming conventions, events suffix |
+
+### Test Quality
+
+| Quality dimension | Assessment |
+|-------------------|------------|
+| Docstring coverage | 329/329 test functions (100%) |
+| Golden-value tests | 7 physical ground-truth tests (spectrogram, features, preprocessing) — all verified |
+| Determinism coverage | 15 tests across preprocessing, DSP, ML, synthetic signals, cross-process |
+| Boundary coverage | FFT (7 edge cases), Butterworth filter (invalid ranges, short signal, Nyquist clamp) |
+| ⭐⭐⭐⭐⭐ modules | module_imports, label_taxonomy, negatives, fft_basic, reproducibility |
+| ⭐⭐⭐☆☆ modules | gui_static_integration (AST-only), performance_baseline (env-sensitive), icbhi_compatibility (naming only) |
+
+### Known Test Gaps
+
+| Gap | Status |
+|-----|--------|
+| MLService dispatcher routing | ✅ Closed — 36 tests, full dispatch coverage |
+| Annotation CRUD undo/redo cycle with negative samples | ⚠️ Partial — NegSampleManager CRUD covered; full undo/redo cycle not tested |
+| Multi-lane layout (`_pick_lane`) collision avoidance | ⚠️ GUI manual testing only |
+| Hard negative feedback loop (delete→retrain→improved predictions) | ⚠️ Partial — NegSampleManager tested; end-to-end feedback loop not tested |
+| All GUI modules | ⚠️ 37 headless tests added; BoxSpan (~618 lines) still requires manual testing |
 
 **Disclaimer:** These tests demonstrate functional correctness, file-format
 robustness, and reproducibility of the software infrastructure. They should
@@ -348,7 +370,7 @@ the original monolith into a modular architecture:
 | Backend package (`respanno/`) | ✅ Complete |
 | GUI entry point (`1.0.0.py`) | ✅ Complete |
 | ML pipeline (LightGBM + HSMM) | ✅ Complete |
-| Test suite (535 tests, 26 files) | ✅ Complete |
+| Test suite (535 tests, 24 files) | ✅ Complete |
 | CI/CD (3 OS x 3 Python) | ✅ Active |
 
 ---

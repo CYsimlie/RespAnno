@@ -75,7 +75,7 @@ def clear_ml_annotations(viewer, label):
         except Exception:
             continue
 
-        if src == "ml" and str(t) == str(label):
+        if src == "ml" and str(t).strip().lower() == str(label).strip().lower():
             spans_to_delete.append(span)
 
     for sp in spans_to_delete:
@@ -97,5 +97,5 @@ def clear_ml_annotations(viewer, label):
         except Exception:
             continue
 
-        if src == "ml" and str(t) == str(label):
+        if src == "ml" and str(t).strip().lower() == str(label).strip().lower():
             viewer.annotations[i] = None

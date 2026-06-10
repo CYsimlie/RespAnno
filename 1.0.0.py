@@ -109,7 +109,7 @@ class AudioViewer(QMainWindow):
 
         # Annotation type and color management (built-in respiratory sound labels with corresponding colors)
         self.annotation_builtin_labels = [
-            ("哮鸣音", "wheeze"),
+            ("哮鸣音", "Wheeze"),
             ("爆裂音", "Crackles"),
             ("摩擦音", "Pleural Rub"),
             ("哼鸣音", "Rhonchi"),
@@ -507,8 +507,10 @@ class AudioViewer(QMainWindow):
 
         # Initialize current_ml_label (keep the existing value if it is in the list; otherwise use the first)
         if label_en_list:
-            if self.current_ml_label in label_en_list:
-                idx = label_en_list.index(self.current_ml_label)
+            _cur_lower = self.current_ml_label.strip().lower() if self.current_ml_label else ""
+            _en_lower = [e.strip().lower() for e in label_en_list]
+            if _cur_lower in _en_lower:
+                idx = _en_lower.index(_cur_lower)
                 self.ml_label_combo.setCurrentIndex(idx)
             else:
                 self.current_ml_label = label_en_list[0]
@@ -1919,20 +1921,30 @@ class AudioViewer(QMainWindow):
         else:
             QMessageBox.information(self, "Notice", "This is already the last file.")
 
+    def _find_color_map_key(self, label_text):
+        """Case-insensitive lookup in annotation_color_map; returns (color, key) or (None, None)."""
+        lab_low = str(label_text).strip().lower()
+        for k, v in self.annotation_color_map.items():
+            if str(k).strip().lower() == lab_low:
+                return v, k
+        return None, None
+
     def get_annotation_color(self, label_text):
         """Return a stable color for a label text: built-in labels use fixed colors; custom labels use auto-assigned colors."""
         if not label_text:
             return QColor(255, 255, 255)
 
-        # Return directly if already mapped
-        if label_text in self.annotation_color_map:
-            return self.annotation_color_map[label_text]
+        # Case-insensitive lookup in existing color map
+        existing, _ = self._find_color_map_key(label_text)
+        if existing is not None:
+            return existing
 
-        # Preset type (English name)
-        if label_text in self.annotation_color_builtin:
-            color = self.annotation_color_builtin[label_text]
-            self.annotation_color_map[label_text] = color
-            return color
+        # Case-insensitive lookup in built-in colors
+        lab_low = str(label_text).strip().lower()
+        for k, v in self.annotation_color_builtin.items():
+            if str(k).strip().lower() == lab_low:
+                self.annotation_color_map[label_text] = v
+                return v
 
         # Any other text: pick a color sequentially from the palette
         palette = self.annotation_color_palette
