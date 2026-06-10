@@ -23,8 +23,6 @@ jobs:
         with:
           environment-file: environment.yml
           activate-environment: respanno-test
-          auto-activate-base: false
-          conda-solver: libmamba
 
       - name: Verify environment
         shell: bash -el {0}
