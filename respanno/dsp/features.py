@@ -184,7 +184,7 @@ def _cor_curve_features_19(y: np.ndarray, tvec: np.ndarray) -> Tuple:
     peak_density = float(peak_count / n0)
 
     # 3) waveform statistics
-    area = float(np.trapz(y, tvec))
+    area = float(np.trapezoid(y, tvec) if hasattr(np, 'trapezoid') else np.trapz(y, tvec))
     stdv = float(np.std(y))
     meanv = float(np.mean(y))
     cv = float(stdv / (meanv + 1e-12))
