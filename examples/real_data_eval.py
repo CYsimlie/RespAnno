@@ -111,7 +111,7 @@ def evaluate_one_file(wav_path, csv_path, n_reviewed=2, min_dur_sec=0.10, plot=F
             stft_frame_times=times.astype(float),
             stft_feature_names=full_names,
             annotations=reviewed_anns,
-            sr=int(sr), hop_length=256,
+            sr=int(sr), hop_length=64,
         )
 
         if kind == "phase":
