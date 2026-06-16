@@ -17,9 +17,9 @@ class ColorBarWidget(QWidget):
 
     def __init__(self, parent=None, viewer=None):
         super().__init__(parent)
-        self.viewer = viewer  # 主窗口，用来拿 _get_palette_256
+        self.viewer = viewer
         self._img = None
-        self.setFixedWidth(32)  # 瘦瘦的一条，类似 colorbar
+        self.setFixedWidth(32)
 
     def set_cmap(self, name: str):
         import numpy as np
@@ -32,9 +32,9 @@ class ColorBarWidget(QWidget):
                 lut = None
 
         if lut is None:
-            # 兜底：自己构造一个简单 LUT
+            # Fallback: build a simple LUT.
             if name == "Heatmap":
-                # 粗略 viridis 风格
+                # Rough viridis-like.
                 pts = np.array([
                     (68, 1, 84),
                     (59, 82, 139),
@@ -57,7 +57,7 @@ class ColorBarWidget(QWidget):
             r = int(lut[i, 0] * 255)
             g = int(lut[i, 1] * 255)
             b = int(lut[i, 2] * 255)
-            img.setPixel(0, h - 1 - i, QColor(r, g, b).rgb())  # 低值在底部
+            img.setPixel(0, h - 1 - i, QColor(r, g, b).rgb())  # low values at bottom
         self._img = img
         self.update()
 
@@ -90,7 +90,7 @@ class ColorBarWidget(QWidget):
         self.colorbar = ColorBarWidget(viewer=viewer)
         layout.addWidget(self.colorbar, 0)
 
-        # 上lower limit指示线
+        # Min/max indicator lines.
         self.min_line = pg.InfiniteLine(angle=90, pen=pg.mkPen('y'))
         self.max_line = pg.InfiniteLine(angle=90, pen=pg.mkPen('y'))
         self.hist_plot.addItem(self.min_line)

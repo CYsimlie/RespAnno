@@ -4,7 +4,7 @@ import pyqtgraph as pg
 from PyQt5.QtCore import Qt
 
 class SpanLabelItem(pg.TextItem):
-    # "\"\"annotation条上的文字label：把右键/双击event转发给所属 BoxSpan，避免被mark拖拽逻辑抢走。\"\"\"
+    # Text label forwarding to BoxSpan for right-click / double-click events.
     def __init__(self, *args, owner_span=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._owner_span = owner_span
@@ -24,7 +24,7 @@ class SpanLabelItem(pg.TextItem):
             ev.ignore()
 
     def mouseClickEvent(self, ev):
-        # 右键menu交给 BoxSpan；左键仅用于阻止trigger“拖拽mark”
+        # Right-click menu delegated to BoxSpan.
         if self._owner_span is not None:
             if ev.button() == Qt.RightButton:
                 try:

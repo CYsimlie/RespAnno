@@ -14,7 +14,7 @@ class WaveViewBox(pg.ViewBox):
 
     def mousePressEvent(self, ev):
         if ev.button() == Qt.LeftButton:
-            # 点击waveformregionstart新annotation时，cancelannotationpanel的选中status
+            # When starting a new annotation from the waveform, deselect any current annotation.
             self.parent._selected_span = None
             self.is_marking = True
             self.start_pos = self.mapToView(ev.pos()).x()

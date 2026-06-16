@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 )
 
 class AnnotationLabelDialog(QDialog):
-    """annotationlabelselectdialog：support预设type + Customtext"""
+    """Annotation label dialog with preset types and custom text entry."""
 
     def __init__(self, parent=None, builtin_labels=None, start=None, end=None, default_text=""):
         super().__init__(parent)
@@ -15,7 +15,7 @@ class AnnotationLabelDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        # 顶部Notice：Time段
+        # Time-segment label.
         if start is not None and end is not None:
             info = QLabel(f"Annotation interval: {start:.3f} - {end:.3f} s")
             layout.addWidget(info)
@@ -23,7 +23,7 @@ class AnnotationLabelDialog(QDialog):
         form = QFormLayout()
         layout.addLayout(form)
 
-        # 预设typecombobox：如 哮鸣音(Wheeze)、爆裂音(Crackles) 等
+        # Preset label combo box (e.g., Wheeze, Crackles).
         self.combo = QComboBox()
         self.combo.addItem("(No preset)", userData=None)
         if builtin_labels:
@@ -31,13 +31,13 @@ class AnnotationLabelDialog(QDialog):
                 self.combo.addItem(f"{cn} ({en})", userData=en)
         form.addRow("Preset type:", self.combo)
 
-        # textinput框：最终用于save的labeltext (通常是英文)
+        # Text input for the final label.
         self.line_edit = QLineEdit()
         if default_text:
             self.line_edit.setText(default_text)
         form.addRow("Label text:", self.line_edit)
 
-        # select预设时，auto把英文名写入text框
+        # When a preset is selected, auto-fill the English name.
         def on_combo_changed(idx):
             en = self.combo.itemData(idx)
             if en:
@@ -45,7 +45,6 @@ class AnnotationLabelDialog(QDialog):
 
         self.combo.currentIndexChanged.connect(on_combo_changed)
 
-        # 底部button
         btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btn_box.accepted.connect(self._on_accept)
         btn_box.rejected.connect(self.reject)
@@ -54,14 +53,14 @@ class AnnotationLabelDialog(QDialog):
     def _on_accept(self):
         text = self.line_edit.text().strip()
         if not text:
-            # 不input则视为cancel
+            # Empty input means cancel.
             self.reject()
             return
         self._text = text
         self.accept()
 
     def get_text(self):
-        """模态执行并返回最终text (可能为 None)。"""
+        """Run the dialog modally and return the label text (or None)."""
         if self.exec_() == QDialog.Accepted:
             return self._text
         return None

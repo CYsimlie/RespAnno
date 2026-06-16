@@ -9,7 +9,7 @@ class AnnotViewBox(pg.ViewBox):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
-        self.setMouseMode(self.PanMode)  # defaultdisable拖动画布
+        self.setMouseMode(self.PanMode)  # Disable canvas panning by default.
         self.is_marking = False
         self.start_pos = None
         self.temp_region = None
@@ -26,7 +26,7 @@ class AnnotViewBox(pg.ViewBox):
         if scene is None:
             return None
 
-        # 取 scene 坐标
+        # Map to scene coordinates.
         sp = None
         try:
             sp = ev.scenePos()
@@ -43,13 +43,13 @@ class AnnotViewBox(pg.ViewBox):
         except Exception:
             items = []
 
-        # items 按 Z 值从高到低排列；优先返回最上层的 span
+        # Items sorted by Z-value descending; return topmost span.
         for it in items:
-            # 1) 直接命中 BoxSpan
+            # (1) Direct BoxSpan hit.
             if isinstance(it, BoxSpan):
                 return it
 
-            # 2) 命中 label (TextItem 上挂了 _owner_span)
+            # (2) Label hit (TextItem with _owner_span).
             try:
                 spn = getattr(it, "_owner_span", None)
                 if isinstance(spn, BoxSpan):
@@ -57,7 +57,7 @@ class AnnotViewBox(pg.ViewBox):
             except Exception:
                 pass
 
-            # 3) 命中 ROI 子对象 (handles 等)：向上找 parentItem
+            # (3) ROI child hit: walk up parent chain.
             p = it
             for _ in range(6):
                 try:
@@ -75,15 +75,15 @@ class AnnotViewBox(pg.ViewBox):
         if ev.button() == Qt.LeftButton:
             hit = self._hit_span_under_cursor(ev)
             if hit is not None:
-                # 点击落在已有annotation上：记录为current选中，交给 BoxSpan handle
+                # Click on existing annotation: select and delegate to BoxSpan.
                 self.parent._selected_span = hit
                 ev.ignore()
                 return
-            # 点击空白region：cancel选中
+            # Click on empty region: deselect.
             self.parent._selected_span = None
             self.is_marking = True
             self.start_pos = self.mapToView(ev.pos()).x()
-            self.parent.plot_waveform_highlight(None, None)  # 清除高亮
+            self.parent.plot_waveform_highlight(None, None)
             if self.temp_region:
                 self.parent.annot_plot.removeItem(self.temp_region)
             self.temp_region = pg.LinearRegionItem([self.start_pos, self.start_pos], brush=(0, 255, 255, 50))
@@ -116,7 +116,7 @@ class AnnotViewBox(pg.ViewBox):
             if end < start:
                 start, end = end, start
 
-            # 交由主window统一弹出“marktypeselect”dialog
+            # Delegate to main window for the annotation label dialog.
             self.parent.finalize_annotation(start, end)
 
             if self.temp_region:
@@ -129,8 +129,7 @@ class AnnotViewBox(pg.ViewBox):
 
     def mouseDragEvent(self, ev, axis=None):
         if ev.button() == Qt.RightButton:
-            ev.accept()  # 禁用右键缩放/平移
-            # 你可以在这里扩展右键拖动的用途
+            ev.accept()  # disable right-click zoom/pan
         else:
             super().mouseDragEvent(ev, axis)
 

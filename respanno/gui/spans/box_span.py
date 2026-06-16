@@ -18,25 +18,19 @@ from respanno.gui.spans.span_label_item import SpanLabelItem
 class BoxSpan(pg.RectROI):
     def __init__(self, x0, x1, y_base, height, text, owner, label_color=None):
         super().__init__(pos=[x0, y_base], size=[x1 - x0, height],
-                         # default“只读”：不允许拖动/改boundary；仅在editmode下开启
                          movable=False,
-                         resizable=False,  # 禁掉四角把手
+                         resizable=False,
                          pen=pg.mkPen(255, 255, 255, 255, width=1))
-        # —— 视觉encoding：不再强制纯白填充 (后面统一由 _apply_visual_style() 控制)——
-        try:
-            self.setBrush(pg.mkBrush(0, 0, 0, 0))  # 先透明，避免白块遮挡
-        except Exception:
-            pass
+        self.setBrush(pg.mkBrush(0, 0, 0, 0))
 
         self.owner = owner
-        self.y_base = float(y_base)  # 锁定纵向
-        self.h_fix = float(height)  # 锁定高度
+        self.y_base = float(y_base)
+        self.h_fix = float(height)
         self.text = text
         self.setZValue(6)
         self.setAcceptedMouseButtons(Qt.LeftButton | Qt.RightButton)
 
-        # 独立填充层：RectROI 在部分 pyqtgraph version中只明显Display边框，
-        # 因此额外用一个 QGraphicsRectItem 负责稳定Display类别填充色。
+        # Separate fill layer for stable category color display via QGraphicsRectItem.
         self._fill_item = None
         try:
             self._fill_item = QGraphicsRectItem(float(x0), float(y_base), float(x1 - x0), float(height))
@@ -48,19 +42,18 @@ class BoxSpan(pg.RectROI):
         except Exception:
             self._fill_item = None
 
-        # —— editmode门控 (default关闭，双击进入)——
+        # Double-click to enter edit mode.
         self._edit_mode = False
-        self._orig_interval = None  # (x0, x1)
-        self._orig_item = None      # data层快照 (用于编辑提交后可撤销)
+        self._orig_interval = None
+        self._orig_item = None
         self._handles = []
 
-        # ★ New：label文字color (不传则default黑色)
         if label_color is None:
-            self.label_color = QColor(0, 0, 0)  # 默认黑字
+            self.label_color = QColor(0, 0, 0)
         else:
             self.label_color = label_color
 
-        # 只保留左右把手 (defaulthide+disable；仅在editmodeenable)
+        # Side handles are hidden by default; visible only in edit mode.
         hL = self.addScaleHandle([0, 0.5], [1, 0.5])
         hR = self.addScaleHandle([1, 0.5], [0, 0.5])
         self._handles = [hL, hR]
@@ -83,7 +76,7 @@ class BoxSpan(pg.RectROI):
 
         for h in (hL, hR):
             _hide_handle(h)
-            # disable把手的鼠标交互 (避免与“mark拖拽”冲突)
+            # Hide mouse interaction to avoid conflicts with drag-to-mark.
             try:
                 h.setAcceptedMouseButtons(Qt.NoButton)
             except Exception:
@@ -112,36 +105,30 @@ class BoxSpan(pg.RectROI):
         for h in (hL, hR):
             _style_handle(h)
 
-        # 备注小白框 (Display在条上方)
-        self.label = SpanLabelItem(owner_span=self, anchor=(0.5, 0.0))  # 先建一个空的
+        self.label = SpanLabelItem(owner_span=self, anchor=(0.5, 0.0))
         self.owner.annot_plot.addItem(self.label)
         try:
             self.label._owner_span = self
         except Exception:
             pass
-        self._update_label_html()  # 根据 label_color & text 更新 HTML
-        # annotation条不直接Display文字，label含义统一通过toolbar“Annotation Legend”查看
+        self._update_label_html()
         try:
             self.label.hide()
         except Exception:
             pass
 
-        # —— 视觉encoding：根据 source(manual/ml) 统一Settings pen/brush/label style ——
         self._apply_visual_style(self._infer_source())
 
         self.sigRegionChanged.connect(self._on_changed)
         self._on_changed()
 
-    # ==========================
-    # editmode：仅在该mode下允许拖动/改boundary
-    # ==========================
     def enter_edit_mode(self):
         if self._edit_mode:
             return
         self._edit_mode = True
         self._orig_interval = self.interval()
 
-        # 记录 data 层快照 (用于commit后可undo)
+        # Save data-layer snapshot for undo.
         self._orig_item = None
         try:
             idx = None
@@ -159,13 +146,12 @@ class BoxSpan(pg.RectROI):
         except Exception:
             self._orig_item = None
 
-        # Allow overall translation
+        # Allow translation in edit mode.
         try:
             self.setMovable(True)
         except Exception:
             pass
 
-        # enable并Display左右把手 (仅用于水平改boundary)
         for h in getattr(self, "_handles", []):
             try:
                 h.setOpacity(1.0)
@@ -178,11 +164,7 @@ class BoxSpan(pg.RectROI):
                 except Exception:
                     pass
 
-        # 视觉Notice：edit态用虚线 (不改变 source 的语义；Exit后restore)
-        try:
-            pen_now = getattr(self, "pen", None)
-        except Exception:
-            pen_now = None
+        # Dashed border in edit mode.
         try:
             base = self.owner.get_annotation_color(getattr(self, "text", ""))
             edge_color = QColor(base)
@@ -191,13 +173,11 @@ class BoxSpan(pg.RectROI):
         except Exception:
             pass
 
-        # 通知 owner：进入edit态 (用于键盘 Enter/Esc)
         try:
             self.owner.begin_edit_span(self)
         except Exception:
             pass
 
-        # 初次刷新status栏
         try:
             self.owner._update_edit_status(self)
         except Exception:
@@ -216,7 +196,7 @@ class BoxSpan(pg.RectROI):
         except Exception:
             idx = None
 
-        # cancel：restore原interval (不入 undo)
+        # Cancel: restore original interval (no undo push).
         if not commit and old_interval is not None:
             try:
                 x0, x1 = old_interval
@@ -227,13 +207,12 @@ class BoxSpan(pg.RectROI):
 
         self._edit_mode = False
 
-        # disable移动
+        # Disable translation.
         try:
             self.setMovable(False)
         except Exception:
             pass
 
-        # hide并disable把手
         for h in getattr(self, "_handles", []):
             try:
                 h.setOpacity(0.0)
@@ -246,19 +225,18 @@ class BoxSpan(pg.RectROI):
                 except Exception:
                     pass
 
-        # 强制synchronize一次 (update annotations/spec/label + restore source 对应style)
+        # Sync to data layer and restore visual style.
         try:
             self._on_changed()
         except Exception:
             pass
 
-        # commit：若interval发生变化，则入栈 undo，support Ctrl+Z
+        # Commit: push undo record if interval changed.
         if commit and idx is not None and old_item is not None and old_interval is not None:
             try:
                 n0, n1 = self.interval()
                 o0, o1 = float(old_interval[0]), float(old_interval[1])
                 if abs(n0 - o0) > 1e-9 or abs(n1 - o1) > 1e-9:
-                    # new_item based on data layer
                     new_item = None
                     try:
                         if 0 <= idx < len(self.owner.annotations):
@@ -277,7 +255,7 @@ class BoxSpan(pg.RectROI):
                                 _old_src = str(old_item[3]) if (old_item is not None and len(old_item) >= 4) else "manual"
                             except Exception:
                                 _old_src = "manual"
-                            # 若edit的是机器/认可annotation，则将 source 升级为 auto_edited (便于进入train与export追踪)
+                            # If editing a machine or accepted annotation, upgrade source to auto_edited.
                             try:
                                 _old_src_n = str(_old_src).strip().lower()
                                 if _old_src_n in {"ml", "auto", "machine", "model", "pred", "auto_accepted"}:
@@ -324,14 +302,8 @@ class BoxSpan(pg.RectROI):
         except Exception:
             pass
 
-    # ==========================
-    # 视觉encoding：New的辅助函数
-    # ==========================
     def _infer_source(self) -> str:
-        """
-        从 owner.annotations 里推断current span 的 source。
-        找不到就default manual。仅用于视觉encoding，不改变逻辑。
-        """
+        """Infer source provenance from owner.annotations; fallback to manual (visual-only, no logic change)."""
         try:
             m2 = getattr(self.owner, "_span2idx", {})
             if self in m2:
@@ -345,12 +317,7 @@ class BoxSpan(pg.RectROI):
         return "manual"
 
     def _apply_visual_style(self, src: str):
-        """
-        只做视觉encoding：
-        - color (边框/填充)：来自label类别color (owner.get_annotation_color)，避免人工markedit后边框变黑/消失
-        - source：只决定线型/透明度 (manual 更“权威”，未确认机器annotation更“建议”)
-        """
-        # Box 基色：按label类别稳定映射 (不要用 label_color；label_color 仅用于文字color)
+        """Apply visual style: color from label category, line/opacity from source provenance."""
         try:
             base = self.owner.get_annotation_color(getattr(self, "text", ""))
             c = QColor(base)
@@ -367,8 +334,8 @@ class BoxSpan(pg.RectROI):
         src_n = str(src).strip().lower()
 
         # Visual conventions:
-        # - 未确认的机器annotation：虚线 (ml/auto/pred 等)或 merged_*global*
-        # - 已认可/已edit/局部合并后的annotation：实线 (auto_accepted/auto_edited/merged 等)
+        #   Unconfirmed ML annotations: dashed border.
+        #   Accepted / edited / merged annotations: solid border.
         is_ml_like = (
             src_n in {"ml", "auto", "machine", "model", "pred"}
             or (src_n.startswith("merged") and ("global" in src_n))
@@ -403,7 +370,7 @@ class BoxSpan(pg.RectROI):
             except Exception:
                 pass
 
-        # RectROI itself retains faint fill; the independent fill layer handles the main visible color block.
+        # RectROI keeps faint fill; the independent fill layer handles the main colour block.
         try:
             self.setBrush(pg.mkBrush(fill))
         except Exception:
@@ -418,11 +385,10 @@ class BoxSpan(pg.RectROI):
         except Exception:
             pass
 
-        # synchronize label 的视觉 (不改文字内容)
         self._update_label_html(label_bg=label_bg, label_border=label_border)
 
     def _sync_fill_item(self):
-        """synchronize独立填充矩形的position与size。"""
+        """Sync fill rectangle position and size."""
         try:
             fill_item = getattr(self, "_fill_item", None)
             if fill_item is None:
@@ -434,10 +400,7 @@ class BoxSpan(pg.RectROI):
             pass
 
     def _update_label_html(self, label_bg: str = None, label_border: str = None):
-        """
-        根据当前的 self.text 和 self.label_color 更新 label 的 HTML。
-        仅视觉编码：支持可选的背景透明度与边框颜色。
-        """
+        """Build and apply label HTML from self.text and self.label_color."""
         c = self.label_color
         color_str = "#{:02x}{:02x}{:02x}".format(c.red(), c.green(), c.blue())
 
@@ -460,11 +423,8 @@ class BoxSpan(pg.RectROI):
             pass
 
     def set_label_color(self, color: QColor):
-        """
-        外部修改文字颜色的统一入口。
-        """
+        """Set label text colour and refresh visual style."""
         self.label_color = color
-        # color变了，视觉也应一起刷新 (manual/ml 不变)
         self._apply_visual_style(self._infer_source())
 
     def interval(self):
@@ -473,7 +433,7 @@ class BoxSpan(pg.RectROI):
         return float(p.x()), float(p.x() + s.x())
 
     def _on_changed(self):
-        # Lock vertical position & 高度
+        # Lock vertical position and height.
         p = self.pos()
         s = self.size()
         if float(p.y()) != self.y_base:
@@ -483,19 +443,19 @@ class BoxSpan(pg.RectROI):
             self.setSize([s.x(), self.h_fix], update=False)
             s = self.size()
 
-        # Note box follows (slightly above the bar)
+        # Position the label slightly above the bar.
         cx = float(p.x() + s.x() / 2.0)
         cy = float(self.y_base + s.y()) + 0.05
         self.label.setPos(cx, cy)
         self._sync_fill_item()
 
-        # synchronizespectrumRed条
+        # Sync spectrum highlight bar.
         m = getattr(self.owner, "_span2spec", {})
         if self in m:
             a, b = self.interval()
             m[self].setRegion([a, b])
 
-        # synchronizeexport缓存 (兼容 3/4 元组；三元组视为人工annotation)
+        # Sync annotations export cache (3-tuples treated as manual).
         m2 = getattr(self.owner, "_span2idx", {})
         if self in m2:
             idx = m2[self]
@@ -517,13 +477,12 @@ class BoxSpan(pg.RectROI):
                     src = "manual"
                 self.owner.annotations[idx] = (s, e, t, src)
 
-                # —— 视觉encoding：
-                # 非edit态：按 source synchronizestyle
-                # edit态：保持“edit态虚线”Notice，不要被 source style覆盖
+                # Non-edit: sync visual style from source.
+                # Edit mode: keep dashed edit-mode hint.
                 if not getattr(self, "_edit_mode", False):
                     self._apply_visual_style(src)
 
-        # edit态：实时在status栏Display起止Time
+        # Show start/end times in status bar during edit.
         if getattr(self, "_edit_mode", False):
             try:
                 self.owner._update_edit_status(self)
@@ -531,7 +490,7 @@ class BoxSpan(pg.RectROI):
                 pass
 
     def mouseDoubleClickEvent(self, ev):
-        # 双击switcheditmode：default进入；edit态再双击commitExit
+        # Toggle edit mode on double-click.
         try:
             if not self._edit_mode:
                 self.enter_edit_mode()
@@ -541,7 +500,7 @@ class BoxSpan(pg.RectROI):
             return
         except Exception:
             pass
-        # 兜底：如果出错，仍允许Play
+        # Fallback: play the segment if edit toggle fails.
         try:
             s0, s1 = self.interval()
             self.owner.open_loop_player(s0, s1)
@@ -550,21 +509,21 @@ class BoxSpan(pg.RectROI):
         ev.accept()
 
     def mouseDragEvent(self, ev):
-        # 非editmode下：吞掉拖拽 (不移动/不改boundary)，避免与“mark拖拽”冲突
+        # Non-edit mode: swallow drag events to avoid conflict with drag-to-mark.
         if not getattr(self, "_edit_mode", False):
             try:
                 ev.accept()
             except Exception:
                 pass
             return
-        # editmode下：交给 ROI default实现 (support平移/改boundary)
+        # Edit mode: delegate to ROI default (translation/resize).
         return super().mouseDragEvent(ev)
 
     def mouseClickEvent(self, ev):
         if ev.button() == Qt.RightButton:
             menu = QMenu()
 
-            # —— 机器annotation“认可”：将 source 置为 auto_accepted (进入train/计入已reviewprefix)——
+            # Accept ML annotation: set source to auto_accepted.
             src = ""
             try:
                 src = str(self._infer_source()).strip().lower()
@@ -574,10 +533,10 @@ class BoxSpan(pg.RectROI):
 
             accept_action = None
             if ml_like:
-                accept_action = menu.addAction("✅ Accept (use for training)")
+                accept_action = menu.addAction("Accept (use for training)")
 
-            play_action = menu.addAction("▶ Play")
-            del_action = menu.addAction("🗑 Delete")
+            play_action = menu.addAction("Play")
+            del_action = menu.addAction("Delete")
 
             act = menu.exec_(ev.screenPos().toPoint())
 

@@ -122,15 +122,15 @@ class AudioViewer(QMainWindow):
 
         # Fixed color mapping for built-in labels
         self.annotation_color_builtin = {
-            "Wheeze": QColor("#e41a1c"),       # 红
-            "Crackles": QColor("#377eb8"),      # 蓝
-            "Pleural Rub": QColor("#4daf4a"),   # 绿
-            "Rhonchi": QColor("#984ea3"),        # 紫
-            "Stridor": QColor("#ff7f00"),        # 橙
-            "Speech": QColor("#a65628"),          # 棕
-            "Cough": QColor("#f781bf"),           # 粉
-            "Expiration": QColor("#999999"),      # 灰
-            "Inspiration": QColor("#66c2a5"),     # 青绿
+            "Wheeze": QColor("#e41a1c"),       # Red
+            "Crackles": QColor("#377eb8"),     # Blue
+            "Pleural Rub": QColor("#4daf4a"),  # Green
+            "Rhonchi": QColor("#984ea3"),      # Purple
+            "Stridor": QColor("#ff7f00"),      # Orange
+            "Speech": QColor("#a65628"),       # Brown
+            "Cough": QColor("#f781bf"),        # Pink
+            "Expiration": QColor("#999999"),   # Gray
+            "Inspiration": QColor("#66c2a5"),  # Teal
         }
 
         # Auto-coloring palette for custom labels
@@ -1205,7 +1205,7 @@ class AudioViewer(QMainWindow):
             auto_label_import_settings=getattr(self, "auto_label_import_settings", None),
         )
 
-        dlg.set_current_tab(self.last_settings_tab_index)  # 💡 Last-used Settings tab
+        dlg.set_current_tab(self.last_settings_tab_index)  # Restore last-opened Settings tab.
 
         if dlg.exec_():
             self.n_fft, self.hop_length, self.f_max, self.wave_y_range = dlg.get_values()
