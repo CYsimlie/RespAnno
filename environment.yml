@@ -1,4 +1,4 @@
-name: respanno-test
+name: respanno
 channels:
   - defaults
   - conda-forge

@@ -21,7 +21,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           environment-file: environment.yml
-          activate-environment: respanno-test
+          activate-environment: respanno
 
       - name: Install test dependencies
         shell: bash -el {0}

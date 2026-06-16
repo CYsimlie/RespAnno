@@ -187,6 +187,13 @@ WAV file
 
 ---
 
+## Interface
+
+A detailed walkthrough of the graphical user interface is available in
+[screenshots/GUI_guide.pdf](screenshots/GUI_guide.pdf).
+
+---
+
 ## Installation
 
 ### Prerequisites
@@ -210,7 +217,7 @@ source .venv/bin/activate   # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
 
 # Launch the application
-conda run -n respanno-test python -m respanno.main
+conda run -n respanno python -m respanno.main
 ```
 
 ### Packaged Executable (Windows)
@@ -296,10 +303,10 @@ All tests pass on every commit.
 
 ```bash
 # Run the full test suite
-conda run -n respanno-test python -m pytest tests -q
+conda run -n respanno python -m pytest tests -q
 
 # Run a specific test file
-conda run -n respanno-test python -m pytest tests/test_hsmm_basic.py -v
+conda run -n respanno python -m pytest tests/test_hsmm_basic.py -v
 ```
 
 ### Test Suite by Module
