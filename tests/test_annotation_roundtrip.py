@@ -9,27 +9,27 @@ from respanno.labels.annotation_io import DEFAULT_LABEL_CONFIG, normalize_annota
 class TestNormalizeAnnotation:
 
     def test_3tuple(self):
-        """Verify三元组format (start, end, label) 正确规范化为标准 dict，source default manual。"""
+        """Verify 3-tuple normalises to dict with source='manual'."""
         ann = normalize_annotation((0.5, 1.2, 'wheeze'))
         assert ann == {'start': 0.5, 'end': 1.2, 'label': 'wheeze', 'source': 'manual'}
 
     def test_4tuple(self):
-        """Verify四元组format (start, end, label, source) 正确规范化为标准 dict。"""
+        """Verify 4-tuple normalises to dict correctly."""
         ann = normalize_annotation((0.5, 1.2, 'wheeze', 'ml'))
         assert ann == {'start': 0.5, 'end': 1.2, 'label': 'wheeze', 'source': 'ml'}
 
     def test_dict(self):
-        """Verify dict formatannotation直接透传，保留所有字段。"""
+        """Verify dict-format annotation passes through with all fields."""
         ann = normalize_annotation({'start': 0.5, 'end': 1.2, 'label': 'wheeze'})
         assert ann == {'start': 0.5, 'end': 1.2, 'label': 'wheeze', 'source': 'manual'}
 
     def test_target_source_override(self):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         ann = normalize_annotation((0.5, 1.2, 'wheeze', 'ml'), target_source='auto_accepted')
         assert ann['source'] == 'auto_accepted'
 
     def test_none(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         assert normalize_annotation(None) is None
 
     def test_end_equals_start(self):
@@ -41,18 +41,18 @@ class TestNormalizeAnnotation:
         assert normalize_annotation((2.0, 1.0, 'x')) is None
 
     def test_empty_label(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         assert normalize_annotation((0.5, 1.2, '   ')) is None
 
 class TestParseAnnotationRow:
 
     def test_default_columns_comma(self):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         result = parse_annotation_row(['0.5000', '1.2000', 'wheeze'])
         assert result == {'start': 0.5, 'end': 1.2, 'label': 'wheeze', 'source': 'manual'}
 
     def test_default_columns_with_source(self):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         result = parse_annotation_row(['0.5000', '1.2000', 'wheeze', 'ml'])
         assert result == {'start': 0.5, 'end': 1.2, 'label': 'wheeze', 'source': 'ml'}
 
@@ -64,18 +64,18 @@ class TestParseAnnotationRow:
         assert result == {'start': 0.8, 'end': 2.5, 'label': 'Crackles', 'source': 'manual'}
 
     def test_source_col_zero_disabled(self):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         cfg = {'source_col': 0}
         parts = ['0.5', '1.2', 'wheeze']
         result = parse_annotation_row(parts, config=cfg)
         assert result == {'start': 0.5, 'end': 1.2, 'label': 'wheeze', 'source': 'manual'}
 
     def test_invalid_numeric_returns_none(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         assert parse_annotation_row(['abc', 'def', 'label']) is None
 
     def test_empty_label_returns_none(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         assert parse_annotation_row(['0.5', '1.2', '']) is None
 
     def test_too_few_columns(self):
@@ -101,14 +101,14 @@ class TestReadAnnotationsCSV:
         assert anns[0]['label'] == 'wheeze'
 
     def test_with_source(self, tmp_path):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         p = tmp_path / 't.csv'
         _write_text(p, ['start,end,label,source', '0.5,1.2,wheeze,ml'])
         anns = read_annotations_csv(str(p))
         assert anns[0]['source'] == 'ml'
 
     def test_default_source_manual(self, tmp_path):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         p = tmp_path / 't.csv'
         _write_text(p, ['0.5,1.2,wheeze'])
         anns = read_annotations_csv(str(p))
@@ -205,7 +205,7 @@ class TestReadAnnotationsJSON:
         assert len(anns) == 1
 
     def test_missing_source_defaults_manual(self, tmp_path):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         p = tmp_path / 't.json'
         p.write_text(json.dumps([{'start': 0.5, 'end': 1.2, 'label': 'wheeze'}]), encoding='utf-8')
         anns = read_annotations_json(str(p))
@@ -219,7 +219,7 @@ class TestReadAnnotationsJSON:
         assert anns[0]['label'] == 'Crackles'
 
     def test_case_insensitive_match(self, tmp_path):
-        """Verify source 字段size写不敏感匹配。"""
+        """Verify source field matching is case-insensitive."""
         p = tmp_path / 't.json'
         p.write_text(json.dumps([{'Start': 0.5, 'End': 1.2, 'Label': 'wheeze'}]), encoding='utf-8')
         anns = read_annotations_json(str(p))
@@ -274,7 +274,7 @@ class TestReadAnnotationsAuto:
 class TestWriteAnnotations:
 
     def test_csv_roundtrip(self, tmp_path):
-        """Verify csv format的写→读往返data完全一致。"""
+        """Verify CSV read/write roundtrip preserves all fields exactly."""
         anns = [{'start': 0.5, 'end': 1.2, 'label': 'wheeze', 'source': 'manual'}, {'start': 2.0, 'end': 2.8, 'label': 'Crackles', 'source': 'ml'}]
         p = tmp_path / 'out.csv'
         roundtripped = roundtrip_annotations(str(p), anns)
@@ -286,7 +286,7 @@ class TestWriteAnnotations:
             assert a['source'] == b['source']
 
     def test_json_roundtrip(self, tmp_path):
-        """Verify json format的写→读往返data完全一致。"""
+        """Verify JSON read/write roundtrip preserves all fields exactly."""
         anns = [{'start': 0.5, 'end': 1.2, 'label': 'wheeze', 'source': 'manual'}]
         p = tmp_path / 'out.json'
         roundtripped = roundtrip_annotations(str(p), anns)
@@ -305,7 +305,7 @@ class TestWriteAnnotations:
 class TestDefaultConfig:
 
     def test_defaults_match_legacy(self):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         assert DEFAULT_LABEL_CONFIG['start_col'] == 1
         assert DEFAULT_LABEL_CONFIG['end_col'] == 2
         assert DEFAULT_LABEL_CONFIG['label_col'] == 3

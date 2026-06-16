@@ -28,12 +28,12 @@ def _tokenized_source(path: str) -> str:
         return tokenize.untokenize(tokenize.generate_tokens(f.readline))
 
 def test_legacy_is_unchanged():
-    """Verify legacy/1.0.0.py 不包含对 respanno 模块的引用（保持原始快照）。"""
+    """Verify legacy/1.0.0.py contains no respanno imports (frozen snapshot)."""
     text = _read_text(LEGACY_FILE)
     assert 'respanno' not in text, 'legacy/1.0.0.py must remain frozen'
 
 def test_gui_imports_annotation_io():
-    """Verify 1.0.0.py 的 AST 中包含对 respanno.annotation.io 的 import 语句。"""
+    """Verify 1.0.0.py AST contains import of respanno annotation I/O."""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -49,15 +49,15 @@ def test_gui_imports_annotation_io():
     assert found, f'1.0.0.py must import from {target}'
 
 def test_gui_calls_read_annotations():
-    """Verify 1.0.0.py 源码中包含对 read annotations 的函数调用。"""
+    """Verify 1.0.0.py source contains read_annotations function call."""
     assert 'read_annotations' in _tokenized_source(GUI_FILE)
 
 def test_gui_calls_write_annotations():
-    """Verify 1.0.0.py 源码中包含对 write annotations 的函数调用。"""
+    """Verify 1.0.0.py source contains write_annotations function call."""
     assert 'write_annotations' in _tokenized_source(GUI_FILE)
 
 def test_gui_imports_preprocessing():
-    """Verify 1.0.0.py 的 AST 中包含对 respanno.preprocessing 的 import 语句。"""
+    """Verify 1.0.0.py AST contains import of respanno preprocessing."""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -71,13 +71,13 @@ def test_gui_imports_preprocessing():
     assert any(('respanno.audio.preprocessing' in imp for imp in imports))
 
 def test_gui_calls_preprocessing_functions():
-    """Verify 1.0.0.py 源码中包含对 preprocessing functions 的函数调用。"""
+    """Verify 1.0.0.py source contains preprocessing function calls."""
     src = _tokenized_source(GUI_FILE)
     required = ['apply_butter_filter', 'summarize_preprocessing', 'compute_target_sr', 'load_audio_file', 'get_original_sr']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_spectrogram():
-    """Verify 1.0.0.py 的 AST 中包含对 respanno.spectrogram 的 import 语句。"""
+    """Verify 1.0.0.py AST contains import of respanno spectrogram."""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -91,13 +91,13 @@ def test_gui_imports_spectrogram():
     assert any(('respanno.dsp.spectrogram' in imp for imp in imports))
 
 def test_gui_calls_spectrogram_functions():
-    """Verify 1.0.0.py 源码中包含对 spectrogram functions 的函数调用。"""
+    """Verify 1.0.0.py source contains spectrogram function calls."""
     src = _tokenized_source(GUI_FILE)
     required = ['compute_stft_db', 'decimate_spec_for_display', 'get_palette_256', 'colorize_spectrogram']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_features():
-    """Verify 1.0.0.py 的 AST 中包含对 respanno.features 的 import 语句。"""
+    """Verify 1.0.0.py AST contains import of respanno features."""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -111,13 +111,13 @@ def test_gui_imports_features():
     assert any(('respanno.dsp.features' in imp for imp in imports))
 
 def test_gui_calls_features_functions():
-    """Verify 1.0.0.py 源码中包含对 features functions 的函数调用。"""
+    """Verify 1.0.0.py source contains features function calls."""
     src = _tokenized_source(GUI_FILE)
     required = ['compute_short_time_features', 'build_feature_matrix', 'normalize_feature_for_display']
     assert not [fn for fn in required if fn not in src]
 
 def test_gui_imports_ml_service():
-    """Verify 1.0.0.py import respanno.ml.service（ML pipeline的统一入口）。"""
+    """Verify 1.0.0.py imports respanno.ml.service (ML pipeline entry point)."""
     tree = _parse_ast(GUI_FILE)
     imports = []
     for node in ast.walk(tree):
@@ -133,7 +133,7 @@ def test_gui_imports_ml_service():
         f'Found: {[i for i in imports if "respanno" in i]}')
 
 def test_ml_functions_reachable_via_service():
-    """Verify hsmm/classifier/phase/label_taxonomy 函数通过 service.py 可达。
+    """Verify HSMM/classifier/phase/taxonomy functions are reachable via service.py.
 
     MLService 使用 lazy import 在运行时load这些函数。
     testVerify函数名出现在 service.py 的源码中。
@@ -179,7 +179,7 @@ def test_gui_module_files_exist():
         assert os.path.isfile(path), f'Missing module: {rel_path}'
 
 def test_gui_modules_compile():
-    """test join, AssertionError, compile 的行为。"""
+    """test join, AssertionError, and compile statement parsing."""
     import py_compile
     for rel_path in GUI_MODULES:
         path = os.path.join(ROOT, rel_path)

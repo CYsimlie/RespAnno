@@ -16,7 +16,7 @@ def sig_4000():
 class TestComputeSTFTDB:
 
     def test_output_shape(self, sig_4000):
-        """Verifyoutput数组的维度和形状符合预期。"""
+        """Verify output array dimensions and shape match expectations."""
         (sig, sr) = sig_4000
         (S_db, freqs) = compute_stft_db(sig, sr, n_fft=512, hop_length=256, f_max=2000)
         assert S_db.ndim == 2
@@ -25,26 +25,26 @@ class TestComputeSTFTDB:
         assert freqs[0] == 0.0
 
     def test_f_max_clamped_to_nyquist(self, sig_4000):
-        """Verify非法parameter值被 clamp 到合法range。"""
+        """Verify invalid parameter values are clamped to valid range."""
         (sig, sr) = sig_4000
         (S_db, freqs) = compute_stft_db(sig, sr, n_fft=512, hop_length=256, f_max=4000)
         assert freqs[-1] <= sr / 2
 
     def test_all_db_values_at_most_zero(self, sig_4000):
-        """Verify STFT dB 值不超过 0 dB（相对满量程）。"""
+        """Verify all STFT dB values are <= 0 dB."""
         (sig, sr) = sig_4000
         (S_db, _) = compute_stft_db(sig, sr)
         assert np.max(np.abs(S_db)) < 100
 
     def test_empty_raises(self):
-        """Verify无效input时抛出异常。"""
+        """Verify empty input raises an exception."""
         with pytest.raises(ValueError):
             compute_stft_db(np.array([]), 4000)
 
 class TestLimitFrequencyRange:
 
     def test_crops(self, sig_4000):
-        """Verify limit_frequency_range 正确裁剪spectrum图。"""
+        """Verify limit_frequency_range correctly crops the spectrogram."""
         (sig, sr) = sig_4000
         (S_db, freqs) = compute_stft_db(sig, sr, f_max=2000)
         (S_sub, f_sub) = limit_frequency_range(S_db, freqs, f_max=500, sr=sr)
@@ -80,13 +80,13 @@ class TestDecimate:
 class TestPalette:
 
     def test_heatmap_shape(self):
-        """Verifyoutput数组的维度和形状符合预期。"""
+        """Verify output array dimensions and shape match expected。"""
         lut = get_palette_256('Heatmap')
         assert lut.shape == (256, 3)
         assert np.all(lut >= 0.0) and np.all(lut <= 1.0)
 
     def test_grayscale_shape(self):
-        """Verifyoutput数组的维度和形状符合预期。"""
+        """Verify output array dimensions and shape match expected。"""
         lut = get_palette_256('Grayscale')
         assert lut.shape == (256, 3)
         assert np.allclose(lut[:, 0], lut[:, 1])
@@ -159,17 +159,17 @@ class TestComputeSpectrogramDisplay:
 class TestDefaultConfig:
 
     def test_defaults_match_legacy(self):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values match legacy."""
         assert DEFAULT_STFT_CONFIG['n_fft'] == 256
         assert DEFAULT_STFT_CONFIG['hop_length'] == 64
         assert DEFAULT_STFT_CONFIG['f_max'] == 2000
         assert DEFAULT_STFT_CONFIG['cmap'] == 'Heatmap'
 
 class TestGoldenValues:
-    """物理真值Verify：用已知signalVerify STFT output在正确的时间/频率position。"""
+    """Physical ground-truth: verify STFT output at correct time/frequency positions."""
 
     def test_sine_sweep_tf_localization(self):
-        """500 Hz 纯音前半段 + 1000 Hz 纯音后半段：Verify STFT energycrest值在正确positionswitch。"""
+        """500 Hz + 1000 Hz sine sweep: verify STFT energy peaks switch correctly."""
         import numpy as np
         from respanno.dsp.spectrogram import compute_stft_db
 
@@ -177,7 +177,7 @@ class TestGoldenValues:
         duration = 2.0
         t = np.linspace(0, duration, int(sr * duration), endpoint=False)
 
-        # 前半段 500 Hz，后半段 1000 Hz
+        # First half 500 Hz, second half 1000 Hz
         mid = len(t) // 2
         sig = np.zeros_like(t)
         sig[:mid] = np.sin(2 * np.pi * 500 * t[:mid])
@@ -188,21 +188,21 @@ class TestGoldenValues:
             n_fft=256, hop_length=64, f_max=2000
         )
 
-        # 找到 500 Hz 和 1000 Hz 最近的 bin
+        # Find bins nearest to 500 Hz and 1000 Hz
         i500 = int(np.argmin(np.abs(freqs - 500)))
         i1000 = int(np.argmin(np.abs(freqs - 1000)))
 
         n_frames = S_db.shape[1]
         half_frames = n_frames // 2
 
-        # Golden value: 前半段时间帧在 500 Hz 处energy > 1000 Hz 处
+        # Golden value: first-half frames have more energy at 500 Hz than at 1000 Hz
         energy_500_first = np.mean(S_db[i500, :half_frames])
         energy_1000_first = np.mean(S_db[i1000, :half_frames])
         assert energy_500_first > energy_1000_first, (
             f'前半段：500 Hz energy({energy_500_first:.1f})应 > 1000 Hz({energy_1000_first:.1f})'
         )
 
-        # Golden value: 后半段时间帧在 1000 Hz 处energy > 500 Hz 处
+        # Golden value: second-half frames have more energy at 1000 Hz than at 500 Hz
         energy_500_second = np.mean(S_db[i500, half_frames:])
         energy_1000_second = np.mean(S_db[i1000, half_frames:])
         assert energy_1000_second > energy_500_second, (
@@ -210,7 +210,7 @@ class TestGoldenValues:
         )
 
     def test_single_tone_consistent_peak(self):
-        """400 Hz 纯音：所有 STFT 时间帧的crest值频率应在 400 Hz 附近（±50 Hz）。"""
+        """400 Hz pure tone: all STFT frame peaks should be near 400 Hz (+/-50 Hz)."""
         import numpy as np
         from respanno.dsp.spectrogram import compute_stft_db
 
@@ -221,12 +221,12 @@ class TestGoldenValues:
 
         S_db, freqs = compute_stft_db(sig, sr, n_fft=256, hop_length=64, f_max=2000)
 
-        # 每帧找crest值频率
+        # Find peak frequency per frame.
         peak_indices = np.argmax(S_db, axis=0)
         peak_freqs = freqs[peak_indices]
 
-        # Golden value: 所有帧的crest值频率应在 400 ± 50 Hz range内
-        # （boundary帧可能有 minor 偏差，用 ±50 Hz 宽容度）
+        # Golden value: all frame peaks within 400 +/-50 Hz.
+        # (boundary frames may have minor deviation; ±50 Hz tolerance)
         assert np.all((peak_freqs >= 350) & (peak_freqs <= 450)), (
-            f'峰值频率范围：{peak_freqs.min():.0f}～{peak_freqs.max():.0f} Hz（期望 350～450 Hz）'
+            f'Peak frequency range: {peak_freqs.min():.0f}-{peak_freqs.max():.0f} Hz (expected 350-450 Hz)'
         )

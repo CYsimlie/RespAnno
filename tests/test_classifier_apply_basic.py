@@ -17,20 +17,20 @@ def _make_viewer(n_frames=200, n_features=56, annotations=None, seed=42):
 class TestPreconditions:
 
     def test_returns_false_when_no_model(self):
-        """Verify前置条件不满足时返回 False：no model。"""
+        """Verify returns False when no model exists."""
         viewer = _make_viewer()
         ok = apply_event_model(viewer, 'Wheeze')
         assert ok is False
 
     def test_returns_false_when_no_features(self):
-        """Verify前置条件不满足时返回 False：no features。"""
+        """Verify returns False when no features exist."""
         viewer = MockViewer()
         viewer.ml_models['Wheeze'] = {'clf': 'dummy', 'threshold': 0.5}
         ok = apply_event_model(viewer, 'Wheeze')
         assert ok is False
 
     def test_returns_false_when_no_annotations(self):
-        """Verify前置条件不满足时返回 False：no annotations。"""
+        """Verify returns False when no annotations exist."""
         viewer = _make_viewer(annotations=[])
         ok = apply_event_model(viewer, 'Wheeze')
         assert ok is False
@@ -38,7 +38,7 @@ class TestPreconditions:
 class TestSuccessfulApply:
 
     def test_generates_segments_after_training(self):
-        """Verifymodeltrain后正确存储到 ml_models 字典。"""
+        """Verify trained model is stored in ml_models dict."""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         train_event_model(viewer, 'Wheeze', random_state=42)
         ok = apply_event_model(viewer, 'Wheeze', min_dur_sec=0.05)
@@ -47,7 +47,7 @@ class TestSuccessfulApply:
             assert len(viewer.imported) > 0
 
     def test_generated_segments_within_unreviewed_region(self):
-        """Verify ML inference生成的片段位于未reviewregion内。"""
+        """Verify ML-inferred segments fall within the unreviewed region."""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         train_event_model(viewer, 'Wheeze', random_state=42)
         ok = apply_event_model(viewer, 'Wheeze', min_dur_sec=0.0)
@@ -56,7 +56,7 @@ class TestSuccessfulApply:
                 assert s > 3.0 or e > 3.0
 
     def test_min_dur_filters_short_segments(self):
-        """Verify短于 min_dur_sec 的predict片段被正确filter。"""
+        """Verify min_dur_sec filters out short prediction segments."""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 5.0, 'Wheeze', 'manual')])
         train_event_model(viewer, 'Wheeze', random_state=42)
         ok_strict = apply_event_model(viewer, 'Wheeze', min_dur_sec=100.0)

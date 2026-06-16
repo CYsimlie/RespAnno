@@ -17,25 +17,25 @@ def sig_4000():
 class TestFeatureInventory:
 
     def test_total_count(self):
-        """验证特征总数等于 56（7 时域 + 30 频谱 + 19 自相关）。"""
+        """Verify total feature count is 56 (7 time-domain + 30 spectral + 19 autocorrelation)."""
         assert len(ALL_FEATURE_NAMES) == 56
 
     def test_time_domain_count(self):
-        """验证时域特征数量为 7。"""
+        """Verify time-domain feature count is 7."""
         assert len(TIME_DOMAIN_FEATURE_NAMES) == 7
 
     def test_spectral_count(self):
-        """验证频谱特征数量为 30。"""
+        """Verify spectral feature count is 30."""
         assert len(SPECTRAL_FEATURE_NAMES) == 30
 
     def test_cor_count(self):
-        """验证自相关特征数量为 19。"""
+        """Verify autocorrelation feature count is 19."""
         assert len(COR_FEATURE_NAMES) == 19
 
 class TestFrameSignal:
 
     def test_output_shape(self, sig_4000):
-        """验证输出数组的维度和形状符合预期。"""
+        """Verify output array dimensions and shape."""
         (sig, sr) = sig_4000
         (frames, times, T) = frame_signal(sig, sr, n_fft=512, hop_length=256)
         assert frames.ndim == 2
@@ -43,7 +43,7 @@ class TestFrameSignal:
         assert len(times) == T
 
     def test_times_are_monotonic(self, sig_4000):
-        """验证：np.all(np.diff(times) > 0)。"""
+        """Verify times are monotonically increasing."""
         (sig, sr) = sig_4000
         (_, times, _) = frame_signal(sig, sr, 512, 256)
         assert np.all(np.diff(times) > 0)
@@ -51,34 +51,34 @@ class TestFrameSignal:
 class TestComputeShortTimeFeatures:
 
     def test_returns_dict_with_all_keys(self, sig_4000):
-        """验证：name in feat。"""
+        """Verify all feature names are present in output dict."""
         (sig, sr) = sig_4000
         (times, feat) = compute_short_time_features(sig, sr)
         for name in ALL_FEATURE_NAMES:
             assert name in feat, f'Missing feature: {name}'
 
     def test_times_length_matches(self, sig_4000):
-        """验证：len(arr) == len(times)。"""
+        """Verify each feature array has the same length as times."""
         (sig, sr) = sig_4000
         (times, feat) = compute_short_time_features(sig, sr)
         for (name, arr) in feat.items():
             assert len(arr) == len(times), f'{name}: len(arr)={len(arr)} != len(times)={len(times)}'
 
     def test_no_nan_inf(self, sig_4000):
-        """验证：np.all(np.isfinite(arr))。"""
+        """Verify all feature values are finite (no NaN or inf)."""
         (sig, sr) = sig_4000
         (_, feat) = compute_short_time_features(sig, sr)
         for (name, arr) in feat.items():
             assert np.all(np.isfinite(arr)), f'{name} has NaN or inf'
 
     def test_empty_signal(self):
-        """验证空输入或 None 输入时的行为。"""
+        """Verify behaviour on empty input."""
         (times, feat) = compute_short_time_features(np.array([], dtype=np.float32), 4000)
         assert len(times) == 0
         assert feat == {}
 
     def test_feature_matrix_shape(self, sig_4000):
-        """验证输出数组的维度和形状符合预期。"""
+        """Verify feature matrix dimensions and shape."""
         (sig, sr) = sig_4000
         (times, feat) = compute_short_time_features(sig, sr)
         (X_full, t_out, names) = build_feature_matrix(times, feat)
@@ -89,14 +89,14 @@ class TestComputeShortTimeFeatures:
 class TestNormalize:
 
     def test_range_zero_one(self):
-        """验证：np.min(y_norm) == pytest.approx(0.0)。"""
+        """Verify min of normalised signal equals 0 and max equals 1."""
         y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
         y_norm = normalize_feature_for_display(y)
         assert np.min(y_norm) == pytest.approx(0.0)
         assert np.max(y_norm) == pytest.approx(1.0)
 
     def test_constant_input(self):
-        """验证：np.all(y_norm == 0.0)。"""
+        """Verify constant input normalises to all zeros."""
         y = np.array([7.0, 7.0, 7.0])
         y_norm = normalize_feature_for_display(y)
         assert np.all(y_norm == 0.0)
@@ -104,23 +104,23 @@ class TestNormalize:
 class TestTimeDomainFeatures:
 
     def test_energy_non_negative(self, sig_4000):
-        """验证：np.all(feat['短时能量'] >= 0)。"""
+        """Verify all energy values are non-negative."""
         (sig, sr) = sig_4000
         feat = compute_time_domain_features(sig, sr, 512, 256)
         assert np.all(feat['短时能量'] >= 0)
 
     def test_zcr_in_range(self, sig_4000):
-        """验证：np.all(zcr >= 0) and np.all(zcr <= 1)。"""
+        """Verify zero-crossing rate is in [0, 1]."""
         (sig, sr) = sig_4000
         feat = compute_time_domain_features(sig, sr, 512, 256)
         zcr = feat['过零率']
         assert np.all(zcr >= 0) and np.all(zcr <= 1)
 
 class TestGoldenValues:
-    """物理真值验证：用纯正弦波验证短时特征的物理正确值。"""
+    """Physical ground-truth: verify short-time feature values against known sine tones."""
 
     def test_pure_tone_spectral_centroid(self):
-        """500 Hz 纯音 → 谱质心应 ≈ 500 Hz（所有频谱能量集中在此频率）。"""
+        """Verify 500 Hz pure tone: spectral centroid ~500 Hz."""
         import numpy as np
         from respanno.dsp.features import compute_short_time_features
 
@@ -138,11 +138,11 @@ class TestGoldenValues:
         # Allow ±10% tolerance for FFT bin discretization
         mean_centroid = float(np.mean(centroid))
         assert 450 < mean_centroid < 550, (
-            f'500 Hz 纯音的谱质心应为 ~500 Hz，实际 {mean_centroid:.1f} Hz'
+            f'Spectral centroid of 500 Hz tone should be ~500 Hz, got {mean_centroid:.1f} Hz'
         )
 
     def test_pure_tone_rms_energy(self):
-        """振幅 0.5 的纯音 → RMS 能量应 ≈ 0.5 / sqrt(2) ≈ 0.354。"""
+        """Verify 0.5 amplitude pure tone: RMS energy ~n_fft * amp^2 / 2."""
         import numpy as np
         from respanno.dsp.features import compute_short_time_features
 
@@ -161,13 +161,13 @@ class TestGoldenValues:
         expected_energy = n_fft * (amplitude ** 2 / 2)  # = 32.0
         mean_energy = float(np.mean(energy))
 
-        # 允许 ±15% 容差（窗函数 + boundary效应）
+        # Allow +/-15% tolerance (window + boundary effects)
         assert 27.0 < mean_energy < 37.0, (
-            f'振幅 {amplitude} 的纯音 能量 应 ≈ {expected_energy:.1f}，实际 {mean_energy:.1f}'
+            f'Energy for amplitude {amplitude} should be ~{expected_energy}, got {mean_energy:.1f}'
         )
 
     def test_pure_tone_zcr(self):
-        """400 Hz 纯音 → 过零率应 ≈ 2*f/sr = 800/4000 = 0.20。"""
+        """400 Hz pure tone: ZCR should be ~2*f/sr = 0.20."""
         import numpy as np
         from respanno.dsp.features import compute_short_time_features
 
@@ -184,13 +184,13 @@ class TestGoldenValues:
         expected = 2 * 400 / sr  # = 0.20
         mean_zcr = float(np.mean(zcr))
 
-        # 允许 ±20% 容差
+        # Allow +/-20% tolerance
         assert 0.16 < mean_zcr < 0.24, (
-            f'400 Hz 纯音 ZCR 应 ≈ {expected:.3f}，实际 {mean_zcr:.3f}'
+            f'ZCR of 400 Hz tone should be ~{expected:.3f}，实际 {mean_zcr:.3f}'
         )
 
     def test_silence_rms_near_zero(self):
-        """静音信号 → RMS 能量应接近 0。"""
+        """Verify silence: RMS energy near zero."""
         import numpy as np
         from respanno.dsp.features import compute_short_time_features
 
@@ -204,5 +204,5 @@ class TestGoldenValues:
 
         energy = feat_dict['短时能量']
         assert float(np.max(energy)) < 1e-6, (
-            f'静音信号 短时能量 应接近 0，实际最大 {float(np.max(energy)):.2e}'
+            f'Silence short-time energy should be near 0, max was {float(np.max(energy)):.2e}'
         )

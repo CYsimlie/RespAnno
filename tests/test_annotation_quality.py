@@ -14,38 +14,38 @@ FIXTURE_DIR = os.path.join(os.path.dirname(__file__), 'fixtures', 'annotations')
 class TestNormalizeInvariants:
 
     def test_start_before_end(self):
-        """Verify start >= end 的非法annotation被 normalize_annotation 拒绝（返回 None）。"""
+        """Verify annotations with start >= end are rejected and return None."""
         ann = normalize_annotation((1.5, 0.5, 'X'))
         assert ann is None
 
     def test_empty_label(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         ann = normalize_annotation((0.5, 1.0, ''))
         assert ann is None
 
     def test_always_has_source(self):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         ann = normalize_annotation((0.5, 1.0, 'Wheeze'))
         assert 'source' in ann
 
     def test_default_source_is_manual(self):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         ann = normalize_annotation((0.5, 1.0, 'Wheeze'))
         assert ann['source'] == 'manual'
 
     def test_source_preserved(self):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         ann = normalize_annotation((0.5, 1.0, 'Wheeze', 'ml'))
         assert ann['source'] == 'ml'
 
     def test_none_returns_none(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         assert normalize_annotation(None) is None
 
 class TestRoundtrip:
 
     def test_csv_roundtrip_preserves_all_fields(self):
-        """Verify csv preserves all fields format的写→读往返data完全一致。"""
+        """Verify CSV read/write roundtrip preserves all fields exactly."""
         original = [(0.5, 1.2, 'Wheeze', 'manual'), (1.8, 2.4, 'Crackles', 'ml'), (3.0, 4.1, 'Inspiration', 'auto_accepted')]
         anns = [normalize_annotation(a) for a in original]
         with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as f:
@@ -63,7 +63,7 @@ class TestRoundtrip:
             os.unlink(path)
 
     def test_json_roundtrip_preserves_all_fields(self):
-        """Verify json preserves all fields format的写→读往返data完全一致。"""
+        """Verify JSON read/write roundtrip preserves all fields exactly."""
         original = [(0.5, 1.2, 'Wheeze', 'manual'), (1.8, 2.4, 'Crackles', 'auto_edited'), (3.0, 4.1, 'Inspiration', 'merged')]
         anns = [normalize_annotation(a) for a in original]
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
@@ -85,14 +85,14 @@ class TestSourceProvenance:
     VALID_SOURCES = {'manual', 'ml', 'auto_accepted', 'auto_edited', 'merged'}
 
     def test_all_sources_survive_normalize(self):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         for src in self.VALID_SOURCES:
             ann = normalize_annotation((0.5, 1.0, 'X', src))
             assert ann is not None
             assert ann['source'] == src
 
     def test_all_sources_survive_csv_roundtrip(self):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         original = [(0.5, 1.0, 'X', src) for src in self.VALID_SOURCES]
         anns = [normalize_annotation(a) for a in original]
         with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as f:
@@ -160,7 +160,7 @@ class TestFixtureFiles:
         assert len(rows) == 5
 
     def test_with_source_col(self):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         path = os.path.join(FIXTURE_DIR, 'with_source_col.csv')
         rows = read_annotations(path)
         sources = {r['source'] for r in rows}
@@ -169,7 +169,7 @@ class TestFixtureFiles:
         assert 'merged' in sources
 
     def test_empty_file(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         path = os.path.join(FIXTURE_DIR, 'empty.csv')
         rows = read_annotations(path)
         assert rows == []

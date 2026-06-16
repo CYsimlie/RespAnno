@@ -6,31 +6,31 @@ class TestPhaseRouting:
 
     @pytest.mark.parametrize('label', ['Inspiration', 'inspiration', 'INSPIRATION', 'Expiration', 'expiration', 'EXPIRATION', 'Pause', 'pause', 'PAUSE', 'insp', 'exp', 'inhale', 'exhale', 'exspiration'])
     def test_phase_labels(self, label):
-        """Verify英文呼吸时相label（Inspiration/Expiration/Pause 等）被路由到 PHASE_KIND。"""
+        """Verify English phase labels route to PHASE_KIND."""
         assert label_kind(label) == PHASE_KIND
 
     @pytest.mark.parametrize('label', ['吸气', '呼气', '停顿'])
     def test_chinese_phase_labels(self, label):
-        """Verify英文呼吸时相label（Inspiration/Expiration/Pause 等）被路由到 PHASE_KIND。"""
+        """Verify Chinese phase labels route to PHASE_KIND."""
         assert label_kind(label) == PHASE_KIND
 
 class TestOtherEventRouting:
 
     @pytest.mark.parametrize('label', ['Speech', 'speech', 'talk', 'talking', 'voice', 'whisper', 'Cough', 'cough', 'coughing', 'Sneeze', 'sneeze', 'Snore', 'snore', 'Noise', 'noise', 'artifact', 'movement', 'background'])
     def test_other_event_labels(self, label):
-        """Verify英文其他eventlabel（Speech/Cough/Noise 等）被路由到 OTHER_EVENT_KIND。"""
+        """Verify English other-event labels route to OTHER_EVENT_KIND."""
         assert label_kind(label) == OTHER_EVENT_KIND
 
     @pytest.mark.parametrize('label', ['说话', '讲话', '咳嗽', '咳'])
     def test_chinese_other_event_labels(self, label):
-        """Verify英文其他eventlabel（Speech/Cough/Noise 等）被路由到 OTHER_EVENT_KIND。"""
+        """Verify Chinese other-event labels route to OTHER_EVENT_KIND."""
         assert label_kind(label) == OTHER_EVENT_KIND
 
 class TestAbnormalSoundRouting:
 
     @pytest.mark.parametrize('label', ['Wheeze', 'wheeze', 'Crackles', 'crackles', 'Rhonchi', 'rhonchi', 'Stridor', 'stridor', 'Pleural Rub', 'pleural rub'])
     def test_abnormal_sound_default(self, label):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         assert label_kind(label) == ABNORMAL_SOUND_KIND
 
     def test_unknown_label_defaults_to_abnormal_sound(self):
@@ -42,7 +42,7 @@ class TestAbnormalSoundRouting:
 class TestEdgeCases:
 
     def test_leading_trailing_whitespace_trimmed(self):
-        """Verifylabel前后空格被正确去除后再路由。"""
+        """Verify leading/trailing whitespace is trimmed before routing."""
         assert label_kind('  Inspiration  ') == PHASE_KIND
         assert label_kind('\tCough\n') == OTHER_EVENT_KIND
 

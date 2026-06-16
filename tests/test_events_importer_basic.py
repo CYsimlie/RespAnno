@@ -31,7 +31,7 @@ def _write(path, content):
 class TestResolvePath:
 
     def test_finds_matching_csv(self):
-        """Verifyauto匹配同名 _csv eventfile。"""
+        """Verify auto-matching of same-name _events.csv file."""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'recording.wav')
             evt = os.path.join(d, 'recording_events.csv')
@@ -41,7 +41,7 @@ class TestResolvePath:
             assert indexer.resolve_path(wav) == os.path.abspath(evt)
 
     def test_finds_matching_txt(self):
-        """Verifyauto匹配同名 _txt eventfile。"""
+        """Verify auto-matching of same-name _events.txt file."""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'rec.wav')
             evt = os.path.join(d, 'rec_events.txt')
@@ -51,7 +51,7 @@ class TestResolvePath:
             assert indexer.resolve_path(wav) == os.path.abspath(evt)
 
     def test_finds_matching_json(self):
-        """Verifyauto匹配同名 _json eventfile。"""
+        """Verify auto-matching of same-name _events.json file."""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'r.wav')
             evt = os.path.join(d, 'r_events.json')
@@ -61,7 +61,7 @@ class TestResolvePath:
             assert indexer.resolve_path(wav) == os.path.abspath(evt)
 
     def test_no_match_returns_none(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'x.wav')
             _write(wav, '')
@@ -69,12 +69,12 @@ class TestResolvePath:
             assert indexer.resolve_path(wav) is None
 
     def test_none_path_returns_none(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         indexer = EventsFileIndexer(MockViewer())
         assert indexer.resolve_path(None) is None
 
     def test_non_string_path_returns_none(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         indexer = EventsFileIndexer(MockViewer())
         assert indexer.resolve_path(123) is None
 
@@ -127,7 +127,7 @@ class TestParseFileCached:
             assert os.path.abspath(evt) in indexer._parse_cache
 
     def test_non_string_returns_empty(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         indexer = EventsFileIndexer(MockViewer())
         assert indexer.parse_file_cached(None) == []
         assert indexer.parse_file_cached(123) == []
@@ -135,7 +135,7 @@ class TestParseFileCached:
 class TestAutoImport:
 
     def test_imports_valid_rows(self):
-        """Verify respanno 子包可被 importlib.import_module 正常import。"""
+        """Verify respanno subpackage imports cleanly via importlib."""
         viewer = MockViewer()
         with tempfile.TemporaryDirectory() as d:
             wav = os.path.join(d, 'test.wav')

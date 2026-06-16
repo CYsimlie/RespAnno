@@ -21,7 +21,7 @@ class TestICBHIFormat:
     """ICBHI annotations are tab-separated with 3 columns: start, end, label."""
 
     def test_load_icbhi_tab_format(self):
-        """Verify ICBHI 2017 挑战赛data集format兼容性。"""
+        """Verify ICBHI 2017 Challenge dataset format compatibility."""
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, 'test_events.txt')
             _write(path, '2.122\t2.879\twheeze\n10.350\t10.807\twheeze\n')

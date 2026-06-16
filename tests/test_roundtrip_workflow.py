@@ -67,7 +67,7 @@ class TestSourceProvenanceRoundtrip:
     """Every valid source type must survive the roundtrip."""
 
     def test_all_sources_survive(self):
-        """Verifyannotation的 source 溯源info正ensure留。"""
+        """Verify annotation source provenance is preserved."""
         sources = ['manual', 'ml', 'auto_accepted', 'auto_edited', 'merged']
         original = [(i * 0.5, i * 0.5 + 0.4, f'L{i}', src) for (i, src) in enumerate(sources)]
         anns = [normalize_annotation(a) for a in original]

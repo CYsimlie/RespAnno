@@ -28,7 +28,7 @@ class TestE2EWheezeClassifier:
     """Train a wheeze classifier on synthetic data and verify it learns."""
 
     def test_pipeline_runs_without_error(self):
-        """Verify完整 ML pipeline（合成audio→feature→train→inference）运行无异常。"""
+        """Verify full ML pipeline runs without error."""
         (audio, sr, anns) = generate_wheeze_episode(duration=5.0, wheeze_start=1.0, wheeze_dur=2.5, seed=42)
         viewer = _build_viewer(audio, sr, anns)
         ok_train = train_event_model(viewer, 'Wheeze', random_state=42)
@@ -61,7 +61,7 @@ class TestPipelineDeterminism:
     """Identical inputs → identical results across independent runs."""
 
     def test_full_pipeline_deterministic(self):
-        """Verify full pipeline 的确定性：相同input产生逐位相同的output。"""
+        """Verify full pipeline determinism: same input yields identical output."""
         (audio, sr, anns) = generate_wheeze_episode(duration=5.0, wheeze_start=1.0, wheeze_dur=2.5, seed=42)
         v1 = _build_viewer(audio, sr, anns, seed=42)
         v2 = _build_viewer(audio, sr, anns, seed=42)
@@ -85,7 +85,7 @@ class TestFrameLabelE2E:
     """Verify that build_frame_labels integrates correctly with real features."""
 
     def test_labels_integrate_with_real_features(self):
-        """Verify帧label构建与实际feature矩阵的维度对齐。"""
+        """Verify frame labels align correctly with feature matrix dimensions."""
         (audio, sr, anns) = generate_wheeze_episode(duration=4.0, wheeze_start=1.0, wheeze_dur=1.0, seed=42)
         (times, feat_dict) = compute_short_time_features(audio, int(sr))
         y = build_frame_labels(anns, times, 'Wheeze', neg_margin=0.05)

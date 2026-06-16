@@ -17,26 +17,26 @@ def _make_viewer(n_frames=200, n_features=56, annotations=None, sr=4000, hop_len
 class TestPreconditions:
 
     def test_returns_false_when_no_model(self):
-        """Verify前置条件不满足时返回 False：no model。"""
+        """Verify returns False when no model exists."""
         viewer = _make_viewer()
         ok = apply_phase_model(viewer, 'Inspiration')
         assert ok is False
 
     def test_returns_false_when_no_features(self):
-        """Verify前置条件不满足时返回 False：no features。"""
+        """Verify returns False when no features exist."""
         viewer = MockViewer()
         viewer.ml_models['Inspiration'] = {'model_kind': 'phase', 'dummy': True}
         ok = apply_phase_model(viewer, 'Inspiration')
         assert ok is False
 
     def test_returns_false_without_phase_annotations(self):
-        """Verify前置条件不满足时返回 False：without phase annotations。"""
+        """Verify returns False without phase annotations."""
         viewer = _make_viewer(annotations=[(0.5, 2.0, 'Wheeze', 'manual')])
         ok = apply_phase_model(viewer, 'Inspiration')
         assert ok is False
 
     def test_returns_false_when_model_kind_mismatch(self):
-        """Verify前置条件不满足时返回 False：model kind mismatch。"""
+        """Verify returns False when model kind mismatches."""
         viewer = _make_viewer(annotations=[(0.5, 2.0, 'Inspiration', 'manual')])
         viewer.ml_models['Inspiration'] = {'model_kind': 'event'}
         ok = apply_phase_model(viewer, 'Inspiration')
@@ -45,7 +45,7 @@ class TestPreconditions:
 class TestSuccessfulApply:
 
     def test_generates_segments_after_training(self):
-        """Verifymodeltrain后正确存储到 ml_models 字典。"""
+        """Verify trained model is stored in ml_models dict."""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 2.5, 'Inspiration', 'manual'), (3.0, 5.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         ok = apply_phase_model(viewer, 'Inspiration', min_dur_sec=0.05)
@@ -72,7 +72,7 @@ class TestSuccessfulApply:
 class TestHSMMPrior:
 
     def test_returns_false_when_missing_duration_priors(self):
-        """Verify前置条件不满足时返回 False：missing duration priors。"""
+        """Verify returns False when duration priors are missing."""
         viewer = _make_viewer(n_frames=200, annotations=[(0.5, 2.5, 'Inspiration', 'manual'), (3.0, 5.0, 'Expiration', 'manual')])
         train_phase_model(viewer, 'Inspiration', random_state=42)
         viewer.ml_models['Inspiration']['hsmm_prior'] = {}

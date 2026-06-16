@@ -15,14 +15,14 @@ from tests.fixtures.synthetic_signals import generate_tone, generate_respiratory
 class TestPreprocessingDeterminism:
 
     def test_butter_filter_deterministic(self):
-        """Verify butter filter 的确定性：相同input产生逐位相同的output。"""
+        """Verify Butterworth filter determinism: same input yields same output."""
         (audio, sr, _) = generate_tone(freq=200.0, sr=4000, duration=2.0, seed=42)
         out1 = apply_butter_filter(audio, sr, 'bandpass', 50.0, 500.0, 4)
         out2 = apply_butter_filter(audio, sr, 'bandpass', 50.0, 500.0, 4)
         assert np.allclose(out1, out2)
 
     def test_config_validation_deterministic(self):
-        """Verify config validation 的确定性：相同input产生逐位相同的output。"""
+        """Verify config validation determinism: same input yields same output."""
         cfg1 = validate_preprocessing_config({'resample_target_sr': 8000})
         cfg2 = validate_preprocessing_config({'resample_target_sr': 8000})
         assert cfg1 == cfg2
@@ -30,7 +30,7 @@ class TestPreprocessingDeterminism:
 class TestFFTDeterminism:
 
     def test_fft_deterministic(self):
-        """Verify fft 的确定性：相同input产生逐位相同的output。"""
+        """Verify FFT determinism: same input yields same output."""
         (audio, sr, _) = generate_tone(freq=200.0, sr=4000, duration=2.0, seed=42)
         (f1, m1) = compute_fft(audio, sr)
         (f2, m2) = compute_fft(audio, sr)
@@ -38,7 +38,7 @@ class TestFFTDeterminism:
         assert np.allclose(m1, m2)
 
     def test_stft_deterministic(self):
-        """Verify stft 的确定性：相同input产生逐位相同的output。"""
+        """Verify STFT determinism: same input yields same output."""
         (audio, sr, _) = generate_tone(freq=200.0, sr=4000, duration=2.0, seed=42)
         (S1, f1) = compute_stft_db(audio, sr, n_fft=512, hop_length=128)
         (S2, f2) = compute_stft_db(audio, sr, n_fft=512, hop_length=128)
@@ -48,7 +48,7 @@ class TestFFTDeterminism:
 class TestFeatureDeterminism:
 
     def test_short_time_features_deterministic(self):
-        """Verify short time features 的确定性：相同input产生逐位相同的output。"""
+        """Verify short-time feature determinism: same input yields same output."""
         (audio, sr, _) = generate_tone(freq=200.0, sr=4000, duration=2.0, seed=42)
         (t1, fd1) = compute_short_time_features(audio, sr, hop_length=256)
         (t2, fd2) = compute_short_time_features(audio, sr, hop_length=256)
@@ -57,7 +57,7 @@ class TestFeatureDeterminism:
             assert np.allclose(fd1[k], fd2[k], equal_nan=True)
 
     def test_feature_matrix_deterministic(self):
-        """Verify feature matrix 的确定性：相同input产生逐位相同的output。"""
+        """Verify feature matrix determinism: same input yields same output."""
         (audio, sr, _) = generate_tone(freq=200.0, sr=4000, duration=2.0, seed=42)
         (t1, fd1) = compute_short_time_features(audio, sr, hop_length=256)
         (t2, fd2) = compute_short_time_features(audio, sr, hop_length=256)
@@ -69,7 +69,7 @@ class TestFeatureDeterminism:
 class TestFrameLabelDeterminism:
 
     def test_build_frame_labels_deterministic(self):
-        """Verify build frame labels 的确定性：相同input产生逐位相同的output。"""
+        """Verify frame label builder determinism: same input yields same output."""
         (audio, sr, anns) = generate_respiratory_cycle(duration=8.0, seed=42)
         (times, _) = compute_short_time_features(audio, sr, hop_length=256)
         y1 = build_frame_labels(anns, times, 'Wheeze', neg_margin=0.05)
@@ -82,14 +82,14 @@ class TestFrameLabelDeterminism:
 class TestHSMMDeterminism:
 
     def test_log_trans_deterministic(self):
-        """Verify log trans 的确定性：相同input产生逐位相同的output。"""
+        """Verify log-transition matrix determinism: same input yields same output."""
         names = ['Inspiration', 'Expiration', 'Pause']
         lt1 = build_hsmm_log_trans(names)
         lt2 = build_hsmm_log_trans(names)
         assert np.allclose(lt1, lt2)
 
     def test_hsmm_viterbi_deterministic(self):
-        """Verify hsmm viterbi 的确定性：相同input产生逐位相同的output。"""
+        """Verify HSMM Viterbi determinism: same input yields same output."""
         names = ['Inspiration', 'Expiration']
         dmin = np.array([3, 3], dtype=int)
         dmax = np.array([30, 30], dtype=int)
@@ -102,7 +102,7 @@ class TestHSMMDeterminism:
         assert np.array_equal(z1, z2)
 
     def test_hsmm_prior_deterministic(self):
-        """Verify hsmm prior 的确定性：相同input产生逐位相同的output。"""
+        """Verify HSMM prior determinism: same input yields same output."""
         y_prefix = np.array([0, 0, 1, 1, 2, 2, 0, 1, 2, 0], dtype=np.int16)
         classes = [0, 1, 2]
         name_map = {0: 'Inspiration', 1: 'Expiration', 2: 'Pause'}

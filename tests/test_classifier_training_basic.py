@@ -18,7 +18,7 @@ def _make_viewer(n_frames=120, n_features=56, annotations=None, seed=42):
 class TestNoFeatures:
 
     def test_returns_false_when_no_features(self):
-        """Verify前置条件不满足时返回 False：no features。"""
+        """Verify returns False when no features exist."""
         viewer = MockViewer()
         ok = train_event_model(viewer, 'Wheeze', random_state=42)
         assert ok is False
@@ -26,13 +26,13 @@ class TestNoFeatures:
 class TestNoValidFrames:
 
     def test_returns_false_when_no_annotations(self):
-        """Verify前置条件不满足时返回 False：no annotations。"""
+        """Verify returns False when no annotations exist."""
         viewer = _make_viewer(annotations=[])
         ok = train_event_model(viewer, 'Wheeze', random_state=42)
         assert ok is False
 
     def test_returns_false_when_no_match_for_label(self):
-        """Verify前置条件不满足时返回 False：no match for label。"""
+        """Verify returns False when no matching label found."""
         viewer = _make_viewer(annotations=[(0.5, 2.0, 'Crackles', 'manual')])
         ok = train_event_model(viewer, 'Wheeze', random_state=42)
         assert ok is False
@@ -48,19 +48,19 @@ class TestInsufficientSamples:
 class TestSuccessfulTraining:
 
     def test_returns_true_on_success(self):
-        """Verify正常train流程成功返回 True：on success。"""
+        """Verify training returns True on success."""
         viewer = _make_viewer(annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         ok = train_event_model(viewer, 'Wheeze', random_state=42)
         assert ok is True
 
     def test_model_stored_in_ml_models(self):
-        """Verifymodeltrain后正确存储到 ml_models 字典。"""
+        """Verify trained model is stored in ml_models dict."""
         viewer = _make_viewer(annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         train_event_model(viewer, 'Wheeze', random_state=42)
         assert 'Wheeze' in viewer.ml_models
 
     def test_model_info_has_required_keys(self):
-        """Verifymodeltrain后正确存储到 ml_models 字典。"""
+        """Verify trained model is stored in ml_models dict."""
         viewer = _make_viewer(annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         train_event_model(viewer, 'Wheeze', random_state=42)
         info = viewer.ml_models['Wheeze']
@@ -99,7 +99,7 @@ class TestSuccessfulTraining:
         assert len(top) > 0
 
     def test_multiple_labels_independent_models(self):
-        """Verifymodeltrain后正确存储到 ml_models 字典。"""
+        """Verify trained model is stored in ml_models dict."""
         viewer = _make_viewer(annotations=[(0.5, 2.0, 'Wheeze', 'manual'), (2.5, 4.0, 'Crackles', 'manual')])
         ok1 = train_event_model(viewer, 'Wheeze', random_state=42)
         ok2 = train_event_model(viewer, 'Crackles', random_state=42)
@@ -111,7 +111,7 @@ class TestSuccessfulTraining:
 class TestDeterminism:
 
     def test_same_seed_same_model(self):
-        """Verifymodeltrain后正确存储到 ml_models 字典。"""
+        """Verify trained model is stored in ml_models dict."""
         v1 = _make_viewer(seed=42, annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         v2 = _make_viewer(seed=42, annotations=[(0.5, 3.0, 'Wheeze', 'manual')])
         train_event_model(v1, 'Wheeze', random_state=42)

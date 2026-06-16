@@ -13,13 +13,13 @@ class TestAllModulesImport:
 
     @pytest.mark.parametrize('module_name', RESPANNO_MODULES)
     def test_import(self, module_name):
-        """Verify respanno 子包可被 importlib.import_module 正常import。"""
+        """Verify respanno subpackage imports cleanly via importlib."""
         mod = importlib.import_module(module_name)
         assert mod is not None
 
     @pytest.mark.parametrize('module_name', RESPANNO_MODULES)
     def test_has_version_or_doc(self, module_name):
-        """Verify每个子包有 __version__ 或 __doc__。"""
+        """Verify each subpackage has __version__ or __doc__."""
         mod = importlib.import_module(module_name)
         has_doc = bool(getattr(mod, '__doc__', None))
         has_version = bool(getattr(mod, '__version__', None))
@@ -42,7 +42,7 @@ class TestPublicSymbols:
 class TestRespannoTopLevel:
 
     def test_version_string(self):
-        """Verify respanno.__version__ 为字符串type且非空。"""
+        """Verify respanno.__version__ is a non-empty string."""
         import respanno
         ver = getattr(respanno, '__version__', None)
         assert ver is not None

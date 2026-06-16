@@ -18,7 +18,7 @@ class TestEstimateHopSec:
         assert estimate_hop_sec(times=times) == pytest.approx(0.064)
 
     def test_default(self):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         assert estimate_hop_sec() == pytest.approx(0.05)
 
 class TestEstimateBreathCycleSec:
@@ -31,7 +31,7 @@ class TestEstimateBreathCycleSec:
         assert cyc > 0
 
     def test_default_when_empty(self):
-        """Verifydefaultparameter值符合预期。"""
+        """Verify default parameter values are correct."""
         cyc = estimate_breath_cycle_sec([], [], default=4.0)
         assert cyc == 4.0
 
@@ -128,7 +128,7 @@ class TestHSMMPrior:
         assert len(prior['dmax_frames']) == 3
 
     def test_dmin_positive(self):
-        """Verify从已annotation帧学习到的 HSMM 时长prior（dmin/dmax）在合理range内。"""
+        """Verify HSMM duration priors learned from annotations are reasonable."""
         y = np.array([0, 0, 0, 1, 1, 2, 2, 2, 2], dtype=int)
         prior = build_hsmm_prior_from_prefix_labels(y_prefix=y, classes_=[0, 1, 2], state_id_to_name={0: 'Insp', 1: 'Exp', 2: 'Pause'}, hop_sec=0.064, cycle_sec=3.0)
         for d in prior['dmin_frames']:
@@ -154,7 +154,7 @@ class TestStateSeqToSegments:
         assert segs[0] == (0.2, 0.3)
 
     def test_min_dur_filter(self):
-        """Verify短于 min_dur_sec 的predict片段被正确filter。"""
+        """Verify min_dur_sec correctly filters short segments."""
         times = np.linspace(0, 1, 20)
         idx_unr = np.arange(20)
         z = np.array([0] * 5 + [1] + [0] * 14)
@@ -162,6 +162,6 @@ class TestStateSeqToSegments:
         assert len(segs) == 0
 
     def test_empty_unreviewed(self):
-        """Verify空input或 None input时的行为。"""
+        """Verify behaviour on empty or None input。"""
         segs = state_seq_to_segments(np.array([]), np.array([]), np.array([]), 0, 0.05)
         assert segs == []
