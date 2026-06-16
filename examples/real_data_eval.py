@@ -52,7 +52,7 @@ def iou(s1, e1, s2, e2):
     return inter / union if union > 0 else 0.0
 
 
-def evaluate_one_file(wav_path, csv_path, n_reviewed=2, min_dur_sec=0.10, plot=False):
+def evaluate_one_file(wav_path, csv_path, n_reviewed=2, min_dur_sec=0.05, plot=False):
     """Run end-to-end ML evaluation on a single WAV + ground-truth pair.
 
     Returns: (audio, sr, filtered, label_segs, results, S_db, spec_t, freqs, dur)
