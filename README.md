@@ -304,6 +304,28 @@ includes five representative excerpts (resampled to 4000 Hz) with matching
 
 ---
 
+## Real-Data ML Evaluation
+
+RespAnno comes with a headless evaluation script that tests the ML pipeline
+on real respiratory sound recordings with ground-truth annotations.
+
+For each label class, the first `N` ground-truth segments are used as training
+data; the model then attempts to annotate the remainder of the recording.
+Performance is reported as per-label IoU-based recall.
+
+```bash
+# Run on bundled demo data (20 s ICBHI excerpt, Inspiration/Expiration)
+python examples/real_data_eval.py
+
+# Run on your own data
+python examples/real_data_eval.py recording.wav ground_truth.csv --n_reviewed 2
+```
+
+The ground-truth CSV should contain `start,end,label[,source]` columns,
+matching the format produced by the GUI annotation export (Ctrl+E).
+
+---
+
 ## Dependencies
 
 | Package | Minimum Version | Purpose |
