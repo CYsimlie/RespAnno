@@ -1,0 +1,51 @@
+1.0.0.py:4 | verbose                   | Construct the absolute path to the Qt plugins directory (compatible with different PyQt5 installation layouts)
+1.0.0.py:7 | verbose                   | If the Qt5-level directory does not exist, fall back to the path without the Qt5 level
+1.0.0.py:11 | verbose                   | Set the QT plugin environment variable to ensure the Qt runtime can locate platform plugins
+1.0.0.py:162 | verbose                   | Audio loading preprocessing parameters (4000 Hz resampling enabled by default; filtering disabled by default to preserve
+1.0.0.py:204 | verbose                   | Performance optimization: when switching files, only load waveform and STFT; FFT and short-time features are lazy-loaded
+1.0.0.py:228 | verbose                   | ========= ML training / auto-labeling: uses the label selected in the ML combo box =========
+1.0.0.py:252 | verbose                   | Additionally register an Undo QAction (closer to the Qt standard action system; more reliable than QShortcut in some sce
+1.0.0.py:279 | verbose                   | Listen for mouse movement on the STFT plot; use the ViewBox rectangle to determine if the cursor is inside the plotting 
+1.0.0.py:508 | verbose                   | Initialize current_ml_label (keep the existing value if it is in the list; otherwise use the first)
+1.0.0.py:648 | verbose                   | Generate the legend directly from the preset label order in the code, without depending on whether annotations currently
+1.0.0.py:798 | verbose                   | 0. 0. Stop playback before switching files to prevent the old audio from still occupying the sound card.
+1.0.0.py:837 | verbose                   | 3. 3. Read the audio. Use the resample rate from Settings by default; preserve the original sample rate when resampling 
+1.0.0.py:869 | verbose                   | 4. 4. When switching files, clear old caches and old annotations first to avoid reusing stale plots/features.
+1.0.0.py:903 | verbose                   | 5. 5. Show only essentials: decimated waveform + STFT. FFT and features are deferred until the user switches pages.
+1.0.0.py:974 | verbose                   | The decimated image still maps to the full audio duration, ensuring consistent annotation time axes.
+1.0.0.py:986 | verbose                   | Changes to STFT/f_max affect frequency-domain features, but features are not recomputed immediately during STFT refresh.
+1.0.0.py:1215 | verbose                   | New: save "load-time preprocessing" and "auto label import" parameters. Do not immediately reload the current audio to a
+1.0.0.py:1251 | verbose                   | Retrieve STFT Display settings (color scheme + bounds); save before redrawing to avoid using old color levels.
+1.0.0.py:1261 | verbose                   | After Settings changes, only refresh the waveform/STFT and mark FFT/features as dirty; do not recompute short-time featu
+1.0.0.py:1267 | verbose                   | If only the color levels were changed without recomputing, simply recolor the current spectrogram in-place.
+1.0.0.py:1419 | verbose                   | Record a hard negative sample (using the deleted annotation's original label, not the current training label)
+1.0.0.py:1465 | verbose                   | If the input is an STFT highlight region (LinearRegionItem), attempt to reverse-lookup the corresponding BoxSpan,
+1.0.0.py:1466 | verbose                   | and route through the unified BoxSpan deletion logic to support hard-negative samples and Ctrl+Z undo.
+1.0.0.py:1511 | verbose                   | If a span with the same index already exists (should not happen in theory), return immediately to prevent duplication
+1.0.0.py:2328 | verbose                   | Lay the foundation for the "source state machine": more states will be introduced gradually in the future.
+1.0.0.py:2329 | verbose                   | reviewed: participates in the "reviewed prefix" statistic; trainable: a positive-sample annotation eligible for the next
+respanno/gui/dialogs/annotation_label_dialog.py:18 | zh                        | 顶部Notice：Time段
+respanno/gui/dialogs/annotation_label_dialog.py:26 | zh                        | 预设typecombobox：如 哮鸣音(Wheeze)、爆裂音(Crackles) 等
+respanno/gui/dialogs/annotation_label_dialog.py:34 | zh                        | textinput框：最终用于save的labeltext (通常是英文)
+respanno/gui/dialogs/annotation_label_dialog.py:40 | zh                        | select预设时，auto把英文名写入text框
+respanno/gui/dialogs/annotation_label_dialog.py:48 | zh                        | 底部button
+respanno/gui/dialogs/annotation_label_dialog.py:57 | zh                        | 不input则视为cancel
+respanno/gui/dialogs/settings_dialog.py:49 | zh                        | —— New：读取audio时的预handleset。default开启 4000 Hz resampling；filteringdefault关闭，避免改变旧行为。——
+respanno/gui/dialogs/settings_dialog.py:75 | zh                        | —— New：auto读取同名labelfile的parseset。default保持旧逻辑：auto/csv/txt、_events suffix、autodelimiter、前3列为 start/end/label。——
+respanno/gui/dialogs/settings_dialog.py:98 | zh                        | ==== STFT label页 ====
+respanno/gui/dialogs/settings_dialog.py:118 | zh                        | ==== STFT Display (直方图 + colorbar + 上lower limit + Reset Defaults)====
+respanno/gui/dialogs/settings_dialog.py:122 | zh                        | 顶部：直方图 + 渐变色条 (HistogramLUTWidget)
+respanno/gui/dialogs/settings_dialog.py:126 | zh                        | 给 HistogramLUT 提供一份图像data，便于统计直方图
+respanno/gui/dialogs/settings_dialog.py:133 | zh                        | 生成与主图风格一致的 ColorMap
+respanno/gui/dialogs/settings_dialog.py:152 | zh                        | initialize colorbar Color scheme (保留可edit三角控件)
+respanno/gui/dialogs/settings_dialog.py:155 | zh                        | 某些 PyQt5 + 老 pyqtgraph 需要 save/restore 一次才能正确刷新
+respanno/gui/dialogs/settings_dialog.py:162 | zh                        | 中部：Color scheme + 上lower limitinput框
+respanno/gui/dialogs/settings_dialog.py:189 | zh                        | initialize上lower limit：优先用传入值，否则用 1%~99% 分位
+respanno/gui/dialogs/settings_dialog.py:206 | zh                        | Settings到 HistogramLUTItem：这一步决定开窗interval (与主图共享)
+respanno/gui/dialogs/settings_dialog.py:209 | zh                        | synchronize到input框
+respanno/gui/dialogs/settings_dialog.py:219 | zh                        | 底部：Reset Defaults (回到 1%~99% 分位)
+Traceback (most recent call last):
+  File "D:\SoftwareX_win_test\New folder2\SoftwareX\_scan_comments.py", line 83, in <module>
+    print(f"{relpath}:{lineno} | {tag:25s} | {comment}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u2194' in position 96: illegal multibyte sequence
