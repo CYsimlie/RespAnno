@@ -9,7 +9,7 @@ class ClickableSlider(QSlider):
             val = QStyle.sliderValueFromPosition(
                 self.minimum(), self.maximum(), event.pos().x(), self.width())
             self.setValue(val)
-            self.sliderMoved.emit(val)  # triggerslider移动signal
+            self.sliderMoved.emit(val)
         super().mousePressEvent(event)
 
 

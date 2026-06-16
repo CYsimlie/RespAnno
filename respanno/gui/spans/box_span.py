@@ -278,12 +278,6 @@ class BoxSpan(pg.RectROI):
                                 _new_src = str(new_item[3]) if (new_item is not None and len(new_item) >= 4) else "manual"
                             except Exception:
                                 _new_src = "manual"
-                            try:
-                                print(f"[VERIFY][EDIT] idx={idx} label={new_item[2] if new_item is not None else ''} "
-                                      f"src_old={_old_src} src_new={_new_src} "
-                                      f"{o0:.4f}-{o1:.4f} -> {n0:.4f}-{n1:.4f}")
-                            except Exception:
-                                pass
 
                             self.owner._push_undo({
                                 "op": "edit_interval",

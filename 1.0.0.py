@@ -1360,15 +1360,6 @@ class AudioViewer(QMainWindow):
 
             write_annotations(path, ann_dicts)
 
-            # === Verification: print exported source-distribution statistics (viewable in the console)===
-            try:
-                mem_src = {}
-                for d in ann_dicts:
-                    mem_src[d["source"]] = mem_src.get(d["source"], 0) + 1
-                print("[VERIFY][EXPORT] sources in memory:", mem_src)
-            except Exception as _e:
-                print("[VERIFY][EXPORT] source check failed:", _e)
-
             QMessageBox.information(self, "Export Successful", f"Annotations have been saved to:\n{path}")
             self.last_export_path = path  # Remember the path
         except Exception as e:

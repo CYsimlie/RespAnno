@@ -10,10 +10,7 @@ from PyQt5.QtWidgets import QWidget, QHBoxLayout
 from PyQt5.QtGui import QImage, QPainter, QColor
 
 class ColorBarWidget(QWidget):
-    """
-    右侧的纯Display色条，不可点击，不会生成三角控件。
-    直接用 AudioViewer._get_palette_256 画出 0~1 的渐变。
-    """
+    """Read-only colour bar widget that draws a 0→1 gradient using _get_palette_256."""
 
     def __init__(self, parent=None, viewer=None):
         super().__init__(parent)
