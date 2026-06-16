@@ -111,7 +111,7 @@ SoftwareX/
 ├── tests/                          # 535 unit & integration tests
 ├── docs/                           # Architecture & testing documentation
 ├── demo_data/                      # Example WAV + _events annotation files
-└── screenshots/                    # UI screenshots
+└── screenshots/                    # GUI guide (GUI_guide.pdf)
 ```
 
 ### Data Flow
