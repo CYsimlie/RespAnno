@@ -110,8 +110,8 @@ SoftwareX/
 ├── legacy/1.0.0.py                 # Frozen original monolith
 ├── tests/                          # 535 unit & integration tests
 ├── docs/                           # Architecture & testing documentation
-├── demo_data/                      # Example WAV + _events annotation files
-└── screenshots/                    # GUI guide (GUI_guide.pdf)
+├── demo_data/                      # ICBHI 2017 benchmark excerpts
+└── screenshots/                    # UI overview and workflow screenshots
 ```
 
 ### Data Flow
@@ -189,8 +189,21 @@ WAV file
 
 ## Interface
 
-A detailed walkthrough of the graphical user interface is available in
-[screenshots/GUI_guide.pdf](screenshots/GUI_guide.pdf).
+![RespAnno main window](screenshots/GUI.png)
+
+*Figure 1. RespAnno graphical user interface, showing (A) File I/O toolbar, (B) Configuration and Help, (C) ML-assisted annotation bar, (D) time–frequency spectrogram pane, (E) waveform overview pane, (F) annotation track with multi-lane layout, and (G) playback and navigation controls.*
+
+### Workflow Screenshots
+
+| Step | Screenshot |
+|------|-----------|
+| Manual annotation of wheeze | ![wheeze](screenshots/wheeze%E6%B5%8B%E8%AF%95.png) |
+| Model training | ![train](screenshots/%E6%A8%A1%E5%9E%8B%E8%AE%AD%E7%BB%83.png) |
+| Auto-labeling | ![auto](screenshots/%E8%87%AA%E5%8A%A8%E6%A0%87%E8%AE%B0.png) |
+| Short-time feature view | ![features](screenshots/%E7%9F%AD%E6%97%B6%E7%89%B9%E5%BE%81.png) |
+| Settings — Preprocessing | ![preproc](screenshots/setting%20(1).png) |
+| Settings — STFT | ![stft](screenshots/setting%20(3).png) |
+| Settings — Features | ![feat](screenshots/setting%20(5).png) |
 
 ---
 
@@ -227,6 +240,17 @@ A standalone Windows executable can be built with PyInstaller:
 ```bash
 pyinstaller --onefile --windowed --name RespAnno respanno/main.py
 ```
+
+### Demo Data
+
+The `demo_data/` directory contains respiratory sound recordings excerpted from the
+[ICBHI 2017 Challenge dataset](https://bhichallenge.github.io/)
+(Rocha et al., 2018, doi:[10.1007/978-3-030-13969-8_14](https://doi.org/10.1007/978-3-030-13969-8_14)).
+These recordings are from publicly available, de-identified auscultation data and are
+included solely to demonstrate the annotation workflow. The original dataset spans
+920 recordings from 126 subjects across multiple clinical sites; this repository
+includes five representative excerpts (resampled to 4000 Hz) with matching
+`_events` annotation files for immediate testing.
 
 ---
 
