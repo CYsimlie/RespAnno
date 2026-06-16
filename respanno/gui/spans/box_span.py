@@ -21,7 +21,10 @@ class BoxSpan(pg.RectROI):
                          movable=False,
                          resizable=False,
                          pen=pg.mkPen(255, 255, 255, 255, width=1))
-        self.setBrush(pg.mkBrush(0, 0, 0, 0))
+        try:
+            self.setBrush(pg.mkBrush(0, 0, 0, 0))
+        except Exception:
+            pass
 
         self.owner = owner
         self.y_base = float(y_base)
