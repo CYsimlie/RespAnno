@@ -117,8 +117,11 @@ def build_frame_labels(
     y[idx_neg] = 0
 
     # 3.5) hard negative segments (from deletions/corrections)
+    # Hard negatives can lie beyond the reviewed prefix (e.g. deleted ML
+    # false-positives in unreviewed regions).  They are placed without
+    # mask_prefix, and T_used is extended accordingly so the function
+    # does not return None when all negatives are beyond the prefix.
     if neg_segments:
-        # Case-insensitive lookup in neg_segments dict
         _lab_low = str(label).strip().lower()
         neg_list = []
         for _nk, _nv in neg_segments.items():
@@ -134,9 +137,10 @@ def build_frame_labels(
                 if e <= s:
                     continue
                 idx = np.where(
-                    mask_prefix & (times >= s) & (times <= e) & (y != 1)
+                    (times >= s) & (times <= e) & (y != 1)
                 )[0]
                 y[idx] = 0
+                T_used = max(T_used, e)
 
     if not np.any(y == 1) and not np.any(y == 0):
         return None
