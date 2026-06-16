@@ -278,17 +278,21 @@ class TestSpanLabelItem:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestLoopPlayer:
-    """LoopPlayer: loop-playback dialog (may fail without audio device)."""
+    """LoopPlayer: loop-playback dialog with sounddevice mocked."""
 
-    def test_creates_dialog(self, qapp):
-        try:
-            from respanno.gui.dialogs.loop_player import LoopPlayer
-            audio = np.zeros(4000, dtype=np.float32)
-            dlg = LoopPlayer(audio, 4000, 1.0, 2.0, None, parent=None)
-            assert dlg.windowTitle().startswith("Loop Playback")
-            dlg.close()
-        except Exception as e:
-            pytest.skip(f"LoopPlayer requires sounddevice/PortAudio: {e}")
+    def test_creates_dialog(self, qapp, monkeypatch):
+        import sys, types
+        fake_sd = types.ModuleType("sounddevice")
+        fake_sd.stop = lambda: None
+        fake_sd.play = lambda *a, **kw: None
+        fake_sd.OutputStream = type("OutputStream", (), {})
+        sys.modules["sounddevice"] = fake_sd
+
+        from respanno.gui.dialogs.loop_player import LoopPlayer
+        audio = np.zeros(4000, dtype=np.float32)
+        dlg = LoopPlayer(audio, 4000, 1.0, 2.0, None, parent=None)
+        assert dlg.windowTitle().startswith("Loop Playback")
+        dlg.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

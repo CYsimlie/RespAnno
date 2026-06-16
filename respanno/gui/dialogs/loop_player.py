@@ -1,5 +1,6 @@
 """Loop-playback dialog for a selected audio segment."""
 
+import time
 import numpy as np
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QSlider, QPushButton, QLabel
 from PyQt5.QtCore import Qt, QTimer
