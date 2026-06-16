@@ -344,7 +344,7 @@ matching the format produced by the GUI annotation export (Ctrl+E).
 
 ## Testing
 
-The project has **535 tests** across 24 test modules (534 pass, 1 skip).
+The project has **535 tests** across 24 test modules (535 pass, 0 skip).
 All tests pass on every commit.
 
 ```bash
@@ -437,7 +437,6 @@ file for details.
 
 ## Acknowledgments
 
-This work was supported by [funding information to be added].
 The authors thank the developers of librosa, LightGBM, and pyqtgraph
 for their excellent open-source libraries.
 

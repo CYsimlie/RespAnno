@@ -37,7 +37,7 @@ librosa + scipy + LightGBM.  The codebase has been modularised from a single
   |       └── widgets/         # ColorBarWidget, ClickableSlider, ColorCheckDelegate
   |
   +-- legacy/1.0.0.py          # Frozen original single-file program (unmodified)
-  +-- tests/                   # 535 tests, 26 files, 534 pass, 1 skip
+  +-- tests/                   # 535 tests, 24 files, 535 pass, 0 skip
 ```
 
 ## Data Flow
@@ -97,5 +97,5 @@ are accepted by `normalize_annotation()` and converted to dicts.
 ## States & Transitions
 
 - **Phase 1–5 (COMPLETE)**: Pure logic modules extracted and tested.
-- **Phase 6+ (TODO)**: Connect extracted modules back into the legacy GUI,
-  replacing inline code with module imports.
+- **Phase 6 (COMPLETE)**: Extracted modules connected to the GUI entry
+  point (`1.0.0.py`), replacing inline code with module imports.

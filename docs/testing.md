@@ -6,7 +6,7 @@
 conda run -n respanno python -m pytest tests -q
 ```
 
-535 collected, 534 pass, 1 skip (LoopPlayer requires sounddevice/PortAudio).
+535 collected, 535 pass, 0 skip.
 
 ## Test Organization
 
@@ -18,9 +18,9 @@ tests/
 │   ├── synthetic_signals.py        # 8 synthetic respiratory signal generators
 │   └── annotations/                # CSV/TXT/JSON test fixtures
 ├── test_annotation_roundtrip.py     # 43 tests — CSV/TXT/JSON I/O roundtrip
-├── test_gui_widgets_headless.py     # 33 tests — headless PyQt5 widget checks
+├── test_gui_widgets_headless.py     # 37 tests — headless PyQt5 widget checks
 ├── test_preprocessing_basic.py      # 30 tests — Butterworth filter, golden values
-├── test_ml_service_basic.py         # 25 tests — MLService dispatcher routing
+├── test_ml_service_basic.py         # 36 tests — MLService dispatcher routing
 ├── test_negatives_basic.py          # 23 tests — NegSampleManager CRUD
 ├── test_annotation_quality.py       # 21 tests — source provenance, dedup
 ├── test_spectrogram_basic.py        # 21 tests — STFT, colourisation, golden values
@@ -38,9 +38,9 @@ tests/
 ├── test_e2e_ml_pipeline.py          #  8 tests — audio -> features -> train -> predict
 ├── test_phase_apply_basic.py        #  8 tests — HSMM Viterbi decoding
 ├── test_classifier_apply_basic.py   #  7 tests — ML inference, dedup, min-dur filtering
-├── test_label_taxonomy_basic.py     #  8 tests — label routing (phase/abnormal/other)
+├── test_label_taxonomy_basic.py     # 52 tests — label routing (phase/abnormal/other)
 ├── test_icbhi_compatibility.py      #  6 tests — ICBHI 2017 format conventions
-└── test_module_imports.py           #  5 tests — module importability
+└── test_module_imports.py           # 82 tests — module importability + public API checks
 ```
 
 ## Disclaimer

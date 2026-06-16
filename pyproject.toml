@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Respiratory Sound Annotation Tool with ML-assisted labeling"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     {name = "Chaoyue Pan", email = "13145342435@163.com"},
 ]
