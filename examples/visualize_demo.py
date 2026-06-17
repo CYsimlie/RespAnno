@@ -7,7 +7,7 @@ Waveform + spectrogram with aligned annotation bands:
   red    = ML predicted candidates
   purple = IoU-match connectors
 
-Output: examples/demo_signal_visualization.png
+Output: demo_results/synthetic_wheeze_demo.png
 """
 import os, sys, numpy as np
 import matplotlib; matplotlib.use("Agg")
@@ -141,7 +141,7 @@ fig.suptitle(
     fontsize=12, fontweight="bold", y=0.995,
 )
 
-out = os.path.join(os.path.dirname(__file__), "demo_signal_visualization.png")
+out = os.path.join(ROOT, "demo_results", "synthetic_wheeze_demo.png")
 fig.savefig(out, dpi=180, bbox_inches="tight", facecolor="white")
 print(f"Saved: {out}")
 print(f"  Reviewed    : {len(rev)} bursts")

@@ -110,7 +110,10 @@ SoftwareX/
 ├── legacy/1.0.0.py                 # Frozen original monolith
 ├── tests/                          # 535 unit & integration tests
 ├── docs/                           # Architecture & testing documentation
-├── demo_data/                      # ICBHI 2017 benchmark excerpts
+├── demo_data/                      # ICBHI 2017 excerpts (3 subjects × 3 variants)
+├── examples/                       # Runnable demo & evaluation scripts
+├── scripts/                        # CI/quality assurance scripts
+├── demo_results/                   # Output images from example scripts
 └── screenshots/                    # UI overview and workflow screenshots
 ```
 
@@ -230,7 +233,8 @@ source .venv/bin/activate   # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
 
 # Launch the application
-conda run -n respanno python -m respanno.main
+conda run -n respanno python 1.0.0.py
+# or simply: python 1.0.0.py
 ```
 
 ### Packaged Executable (Windows)
@@ -246,11 +250,39 @@ pyinstaller --onefile --windowed --name RespAnno respanno/main.py
 The `demo_data/` directory contains respiratory sound recordings excerpted from the
 [ICBHI 2017 Challenge dataset](https://bhichallenge.github.io/)
 (Rocha et al., 2018, doi:[10.1007/978-3-030-13969-8_14](https://doi.org/10.1007/978-3-030-13969-8_14)).
-These recordings are from publicly available, de-identified auscultation data and are
-included solely to demonstrate the annotation workflow. The original dataset spans
-920 recordings from 126 subjects across multiple clinical sites; this repository
-includes five representative excerpts (resampled to 4000 Hz) with matching
-`_events` annotation files for immediate testing.
+These are publicly available, de-identified auscultation recordings. **All annotations
+in the bundled files have been verified by a physician.**
+
+```
+demo_data/
+├── 4000Hz/                       # Resampled 4000 Hz recordings
+│   ├── 001.wav / 002.wav / 003.wav
+│   └── 001_example.csv … 003_example.csv     # 2 manual labels each (physician-verified)
+├── events/
+│   ├── 001_events.csv … 003_events.csv       # Full ground-truth (for eval script)
+└── OriginFs/                      # Original sampling-rate recordings
+    ├── 001_orig.wav … 003_orig.wav           # Test resampling feature
+```
+
+| Variant | Labels present | Use case |
+|---------|---------------|----------|
+| `_example.csv` | 2 manual annotations per label (physician-verified) | GUI import for individual testing |
+| `_events.csv` | Full ground-truth (all labels) | Batch evaluation via `real_data_eval.py` |
+| `_orig.wav` | —  | Test GUI resampling feature (original sample rates) |
+
+### For Reviewers — Quick Manual Test
+
+```bash
+# 1. Launch RespAnno
+python 1.0.0.py
+
+# 2. File → Import Audio → select demo_data/4000Hz/001.wav
+# 3. File → Import Annotations → select demo_data/4000Hz/001_example.csv
+# 4. In the ML toolbar, select a label (e.g., "Wheeze" or "Inspiration")
+# 5. Click "Train Model" — the model trains on the 2 imported annotations
+# 6. Click "Auto-label Unreviewed" — the model labels the remaining audio
+# 7. Inspect predictions, delete false positives, re-train as needed
+```
 
 ---
 
@@ -276,9 +308,9 @@ includes five representative excerpts (resampled to 4000 Hz) with matching
 7. **Train an ML model:** Select a label from the ML toolbar dropdown
    (e.g., "Wheeze"), then click "Train Model". The model trains on
    all manually reviewed (annotated) frames.
-7. **Auto-label unreviewed data:** Click "Auto-label Unreviewed" to
+8. **Auto-label unreviewed data:** Click "Auto-label Unreviewed" to
    propagate the trained model's predictions to the remaining audio.
-8. **Export:** File → Export Annotations (Ctrl+E). Choose CSV, TXT,
+9. **Export:** File → Export Annotations (Ctrl+E). Choose CSV, TXT,
    or JSON format.
 
 ### Keyboard Shortcuts
@@ -304,25 +336,77 @@ includes five representative excerpts (resampled to 4000 Hz) with matching
 
 ---
 
-## Real-Data ML Evaluation
+## Example Scripts
 
-RespAnno comes with a headless evaluation script that tests the ML pipeline
-on real respiratory sound recordings with ground-truth annotations.
+RespAnno ships with six runnable scripts that demonstrate the pipeline from
+different angles, from synthetic-data sanity checks to real-data evaluation.
 
-For each label class, the first `N` ground-truth segments are used as training
-data; the model then attempts to annotate the remainder of the recording.
-Performance is reported as per-label IoU-based recall.
+### Overview
+
+| Script | Location | Requires GUI? | Generates output? | Purpose |
+|--------|----------|:---:|:---:|---------|
+| `workflow_demo.py` | `examples/` | ✗ | Console | E2E annotation workflow (synthetic data, console output) |
+| `visualize_demo.py` | `examples/` | ✗ | PNG image | Same workflow as above + matplotlib visualisation |
+| `real_data_eval.py` | `examples/` | ✗ | Console + PNG | Batch ML evaluation on real ICBHI recordings |
+| `ml_demo.py` | `scripts/` | ✗ | Console | ML pipeline demo (3 experiments: wheeze, multi-label, phase) |
+| `functional_test.py` | `scripts/` | ✗ | Console | 52 functional verification checks |
+| `repro_check.py` | `scripts/` | ✗ | Console | Cross-process SHA-256 reproducibility verification |
+
+### Differences between the three `examples/` scripts
+
+| Aspect | `workflow_demo.py` | `visualize_demo.py` | `real_data_eval.py` |
+|--------|-------------------|---------------------|---------------------|
+| **Data** | Synthetic (generated on-the-fly) | Synthetic (shares code with workflow_demo) | Real ICBHI 2017 recordings |
+| **Labels** | Wheeze only | Wheeze only | All labels present in the CSV (phase + abnormal) |
+| **Pipeline** | LightGBM classifier | LightGBM classifier | HSMM (phases) + LightGBM (abnormal sounds) |
+| **Output** | Console (metrics) | `demo_results/synthetic_wheeze_demo.png` | `demo_results/001_eval.png` … `003_eval.png` |
+| **Depends on** | `lightgbm` | `lightgbm` + `matplotlib` | `lightgbm` + `matplotlib` |
+| **Use case** | Quick smoke test of ML pipeline | Visual proof of ML annotation quality | Scientific validation on real clinical data |
+
+### Quick Run
 
 ```bash
-# Run on bundled demo data (20 s ICBHI excerpt, Inspiration/Expiration)
+# All six scripts — copy/paste into terminal:
+
+# 1. Synthetic workflow demo (console)
+python examples/workflow_demo.py
+
+# 2. Synthetic workflow + visualization (generates PNG)
+python examples/visualize_demo.py
+
+# 3. Real ICBHI data evaluation (3 recordings, 34/34 recall)
 python examples/real_data_eval.py
 
-# Run on your own data
-python examples/real_data_eval.py recording.wav ground_truth.csv --n_reviewed 2
+# 4. Real ICBHI data evaluation + plots
+python examples/real_data_eval.py --plot
+
+# 5. ML pipeline demonstration (3 experiments)
+python scripts/ml_demo.py
+
+# 6. Functional verification (52 checks)
+python scripts/functional_test.py
+
+# 7. Reproducibility hash check
+python scripts/repro_check.py
 ```
 
-The ground-truth CSV should contain `start,end,label[,source]` columns,
-matching the format produced by the GUI annotation export (Ctrl+E).
+---
+
+## Example Output
+
+Output files from the scripts above are collected in `demo_results/`.
+
+![Synthetic signal demo](demo_results/synthetic_wheeze_demo.png)
+*Figure 2. Synthesised 20 s respiratory signal with embedded wheeze. Green = reviewed training segments, blue = ground truth, red hatched = ML predictions, purple = IoU match connectors.*
+
+![Real data evaluation — subject 001](demo_results/001_eval.png)
+*Figure 3a. Real ICBHI recording 001: Inspiration/Expiration phase labels. 18/18 recall.*
+
+![Real data evaluation — subject 002](demo_results/002_eval.png)
+*Figure 3b. Real ICBHI recording 002: Inspiration + Pleural Rub labels. 8/8 recall.*
+
+![Real data evaluation — subject 003](demo_results/003_eval.png)
+*Figure 3c. Real ICBHI recording 003: Inspiration + Wheeze labels. 8/8 recall.*
 
 ---
 

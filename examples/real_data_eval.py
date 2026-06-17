@@ -169,7 +169,7 @@ def _plot_results(wav_path, audio, sr, filtered, label_segs, results,
                   S_db, spec_t, freqs, dur, n_reviewed):
     """Generate waveform + spectrogram plot with annotation bands."""
     base_name = os.path.splitext(os.path.basename(wav_path))[0]
-    out_path = os.path.join(os.path.dirname(wav_path) or ".", f"{base_name}_eval.png")
+    out_path = os.path.join(ROOT, "demo_results", f"{base_name}_eval.png")
 
     labels = [r[0] for r in results]
     n_labels = len(labels)
@@ -261,12 +261,12 @@ def main():
         # Run on all bundled demo data.
         demo_dir = os.path.join(ROOT, "demo_data")
         pairs = [
-            (os.path.join(demo_dir, "4000Hz", "101_1b1_Al_sc_Meditron.wav"),
-             os.path.join(demo_dir, "events", "101_1b1_Al_sc_Meditron_events.csv")),
-            (os.path.join(demo_dir, "4000Hz", "103_2b2_Ar_mc_LittC2SE.wav"),
-             os.path.join(demo_dir, "events", "103_2b2_Ar_mc_LittC2SE_events.csv")),
-            (os.path.join(demo_dir, "4000Hz", "130_1p3_Ll_mc_AKGC417L.wav"),
-             os.path.join(demo_dir, "events", "130_1p3_Ll_mc_AKGC417L_events.csv")),
+            (os.path.join(demo_dir, "4000Hz", "001.wav"),
+             os.path.join(demo_dir, "events", "001_events.csv")),
+            (os.path.join(demo_dir, "4000Hz", "002.wav"),
+             os.path.join(demo_dir, "events", "002_events.csv")),
+            (os.path.join(demo_dir, "4000Hz", "003.wav"),
+             os.path.join(demo_dir, "events", "003_events.csv")),
         ]
         for wav, csv in pairs:
             if not os.path.exists(wav) or not os.path.exists(csv):

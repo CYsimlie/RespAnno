@@ -71,14 +71,18 @@ class TestICBHIFileNaming:
         assert events_name == '101_1b1_Pr_sc_Meditron_events.txt'
 
     def test_our_demo_data_matches_icbhi_naming(self):
-        """Existing demo_data files follow ICBHI conventions."""
+        """Demo data 4000Hz WAV files have matching _events and _example CSV pairs."""
+        import glob
         demo_dir = os.path.join(os.path.dirname(__file__), '..', 'demo_data', '4000Hz')
         if not os.path.isdir(demo_dir):
             pytest.skip('demo_data/4000Hz directory not found')
-        wavs = [f for f in os.listdir(demo_dir) if f.endswith('.wav')]
-        assert len(wavs) >= 4, 'should have at least 4 ICBHI-style WAV files'
+        wavs = sorted(f for f in os.listdir(demo_dir) if f.endswith('.wav'))
+        assert len(wavs) >= 3, f'should have at least 3 WAV files, found {len(wavs)}'
         for wav in wavs:
             base = os.path.splitext(wav)[0]
-            for ext in ('.csv', '.txt', '.json'):
-                events_file = f'{base}_events{ext}'
-                assert events_file.startswith(base)
+            # Each WAV should have a corresponding _events.csv
+            events_file = os.path.join(os.path.dirname(demo_dir), 'events', f'{base}_events.csv')
+            assert os.path.isfile(events_file), f'Missing events CSV for {wav}: {events_file}'
+            # Each WAV should have a corresponding _example.csv
+            example_file = os.path.join(demo_dir, f'{base}_example.csv')
+            assert os.path.isfile(example_file), f'Missing example CSV for {wav}: {example_file}'
