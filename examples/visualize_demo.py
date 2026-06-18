@@ -67,7 +67,7 @@ fig = plt.figure(figsize=(22, 10))
 ax_w = fig.add_axes([0.06, 0.58, 0.91, 0.36])
 ax_w.plot(np.arange(len(audio))/sr, audio, color="#2c3e50", linewidth=0.30)
 for ws, we in rev:   ax_w.axvspan(ws, we, alpha=0.22, color="#27ae60")
-for ws, we in gt_un: ax_w.axvspan(ws, we, alpha=0.12, color="#2980b9")
+for ws, we in gt_un: ax_w.axvspan(ws, we, alpha=0.18, color="#2980b9", hatch="\\\\")
 for ws, we in ml:    ax_w.axvspan(ws, we, alpha=0.22, color="#e74c3c", hatch="////")
 ax_w.axvline(5.0, color="black", lw=1.8, ls="--", alpha=0.55)
 ax_w.text(2.5, 0.93, "REVIEWED", ha="center", fontsize=11, fontweight="bold",
@@ -81,7 +81,7 @@ ax_w.set_xticklabels([])
 ax_w.tick_params(axis="both", labelsize=9)
 
 h1 = mpatches.Patch(color="#27ae60", alpha=0.22, label=f"Reviewed ({len(rev)} bursts)")
-h2 = mpatches.Patch(color="#2980b9", alpha=0.12, label=f"GT withheld ({len(gt_un)} bursts)")
+h2 = mpatches.Patch(color="#2980b9", alpha=0.18, hatch="\\\\", label=f"GT withheld ({len(gt_un)} bursts)")
 h3 = mpatches.Patch(color="#e74c3c", alpha=0.22, hatch="////",
                     label=f"ML predicted ({len(ml)} candidates)")
 ax_w.legend(handles=[h1, h2, h3], loc="lower right", fontsize=9, ncol=3, framealpha=0.9)
@@ -103,7 +103,7 @@ cb_ax = fig.add_axes([0.975, 0.08, 0.012, 0.44])
 fig.colorbar(im, cax=cb_ax).set_label("dB", fontsize=9)
 
 for ws, we in rev:   ax_s.axvspan(ws, we, alpha=0.22, color="#27ae60", zorder=5)
-for ws, we in gt_un: ax_s.axvspan(ws, we, alpha=0.12, color="#2980b9", zorder=4)
+for ws, we in gt_un: ax_s.axvspan(ws, we, alpha=0.18, color="#2980b9", hatch="\\\\", zorder=4)
 for ws, we in ml:    ax_s.axvspan(ws, we, alpha=0.22, color="#e74c3c", hatch="////", zorder=6)
 ax_s.axvline(5.0, color="white", lw=1.8, ls="--", alpha=0.55)
 
@@ -125,7 +125,7 @@ for cs, ce in ml:
             break
 
 h4 = mpatches.Patch(color="#27ae60", alpha=0.22, label="Reviewed")
-h5 = mpatches.Patch(color="#2980b9", alpha=0.12, label="GT withheld")
+h5 = mpatches.Patch(color="#2980b9", alpha=0.18, hatch="\\\\", label="GT withheld")
 h6 = mpatches.Patch(color="#e74c3c", alpha=0.22, hatch="////", label="ML predicted")
 h7 = mpatches.Patch(color="#9b59b6", alpha=0.85, label=f"IoU match ({matched}/{len(gt_un)})")
 ax_s.legend(handles=[h4, h5, h6, h7], loc="upper right", fontsize=9, ncol=4, framealpha=0.9)

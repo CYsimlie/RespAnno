@@ -200,11 +200,11 @@ def _plot_results(wav_path, audio, sr, filtered, label_segs, results,
         # Green: reviewed segments (training)
         for ws, we in reviewed or []:
             ax.axvspan(ws, we, alpha=0.28, color="#27ae60")
-        # Blue: withheld GT (test)
+        # Blue mirrored-hatch: withheld GT (test)
         n_withheld = len(withheld) if withheld else 0
         for ws, we in withheld or []:
-            ax.axvspan(ws, we, alpha=0.15, color="#2980b9")
-        # Red hatched: ML predicted
+            ax.axvspan(ws, we, alpha=0.18, color="#2980b9", hatch="\\\\")
+        # Red forward-hatch: ML predicted
         for ws, we in ml_segs or []:
             ax.axvspan(ws, we, alpha=0.22, color="#e74c3c", hatch="////")
 
@@ -212,7 +212,7 @@ def _plot_results(wav_path, audio, sr, filtered, label_segs, results,
             ax.set_ylabel("Amplitude", fontsize=10)
             handles = [
                 mpatches.Patch(color="#27ae60", alpha=0.28, label="Reviewed (training)"),
-                mpatches.Patch(color="#2980b9", alpha=0.15, label="GT withheld (test)"),
+                mpatches.Patch(color="#2980b9", alpha=0.18, hatch="\\\\", label="GT withheld (test)"),
                 mpatches.Patch(color="#e74c3c", alpha=0.22, hatch="////", label="ML predicted"),
             ]
             ax.legend(handles=handles, loc="upper right", fontsize=9, ncol=3, framealpha=0.9)
