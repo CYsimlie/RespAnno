@@ -1375,8 +1375,8 @@ class AudioViewer(QMainWindow):
         if ev.button() != Qt.RightButton:
             return
         menu = QMenu()
-        play_action = menu.addAction("▶ Play")
-        delete_action = menu.addAction("🗑 Delete")
+        play_action = menu.addAction("Play")
+        delete_action = menu.addAction("Delete")
 
         action = menu.exec_(ev.screenPos().toPoint())
         if action == play_action:
