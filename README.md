@@ -200,10 +200,9 @@ WAV file
 
 | Step | Screenshot |
 |------|-----------|
-| Manual annotation of wheeze | ![wheeze](screenshots/wheeze%E6%B5%8B%E8%AF%95.png) |
-| Model training | ![train](screenshots/%E6%A8%A1%E5%9E%8B%E8%AE%AD%E7%BB%83.png) |
-| Auto-labeling | ![auto](screenshots/%E8%87%AA%E5%8A%A8%E6%A0%87%E8%AE%B0.png) |
-| Short-time feature view | ![features](screenshots/%E7%9F%AD%E6%97%B6%E7%89%B9%E5%BE%81.png) |
+| Model training | ![train](screenshots/model_training.png) |
+| Auto-labeling | ![auto](screenshots/auto_labeling.png) |
+| Short-time feature view | ![features](screenshots/short_time_features.png) |
 | Settings — Preprocessing | ![preproc](screenshots/setting%20(1).png) |
 | Settings — STFT | ![stft](screenshots/setting%20(3).png) |
 | Settings — Features | ![feat](screenshots/setting%20(5).png) |
