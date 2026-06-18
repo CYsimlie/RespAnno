@@ -200,12 +200,12 @@ WAV file
 
 | Step | Screenshot |
 |------|-----------|
-| Model training | ![train](screenshots/model_training.png) |
-| Auto-labeling | ![auto](screenshots/auto_labeling.png) |
-| Short-time feature view | ![features](screenshots/short_time_features.png) |
-| Settings — Preprocessing | ![preproc](screenshots/setting%20(1).png) |
-| Settings — STFT | ![stft](screenshots/setting%20(3).png) |
-| Settings — Features | ![feat](screenshots/setting%20(5).png) |
+| Train a LightGBM classifier on manual annotations | ![train](screenshots/model_training.png) |
+| Apply trained model to unreviewed audio regions | ![auto](screenshots/auto_labeling.png) |
+| Inspect 56 short-time features overlaid on waveform | ![features](screenshots/short_time_features.png) |
+| Configure preprocessing (resampling, Butterworth filter) | ![preproc](screenshots/settings_preprocessing.png) |
+| Adjust STFT spectrogram colour-map and display levels | ![stft](screenshots/settings_stft.png) |
+| Select features for display (up to 5, colour-coded) | ![features](screenshots/settings_features.png) |
 
 ---
 
