@@ -31,7 +31,7 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 |-----|------------------------------|----------------|
 | S1  | Current software version     | v1.0.0         |
 | S2  | Permanent link to executables of this version | (via PyInstaller, see [§ Installation](#installation)) |
-| S3  | Permanent link to Reproducible Capsule | https://doi.org/10.5281/zenodo.20759365 |
+| S3  | Permanent link to Reproducible Capsule | Not applicable |
 | S4  | Legal Software License       | MIT            |
 | S5  | Computing platforms / Operating Systems | Windows 10+ (GUI tested); Ubuntu/macOS (CI-verified, no manual GUI tests) |
 | S6  | Installation requirements & dependencies | conda env or pip, see [§ Installation](#installation) |
