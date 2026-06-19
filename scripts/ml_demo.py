@@ -106,11 +106,6 @@ def main():
     if ok:
         _report_model(viewer.ml_models["Wheeze"], "Wheeze", "Exp1")
 
-        # Show top features
-        top = viewer.ml_models["Wheeze"].get("top_features_by_importance", [])
-        if top:
-            print(f"  Top features       : {', '.join(n for n, _ in top[:5])}")
-
         # Count predictions on unreviewed region
         ok_apply = apply_event_model(viewer, "Wheeze", min_dur_sec=0.05)
         if ok_apply:
