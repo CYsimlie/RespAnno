@@ -17,7 +17,7 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 |-----|---------------------------|----------------|
 | C1  | Current code version      | v1.0.0         |
 | C2  | Permanent link to code / repository used for this code version | https://github.com/CYsimlie/RespAnno |
-| C3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
+| C3  | Permanent link to Reproducible Capsule | https://doi.org/10.5281/zenodo.20759365 |
 | C4  | Legal Code License        | MIT            |
 | C5  | Code versioning system used | git            |
 | C6  | Software code languages, tools, and services used | Python, NumPy, SciPy, librosa, scikit-learn, LightGBM |
@@ -31,7 +31,7 @@ labeling, targeting researchers and clinicians working with auscultation recordi
 |-----|------------------------------|----------------|
 | S1  | Current software version     | v1.0.0         |
 | S2  | Permanent link to executables of this version | (via PyInstaller, see [§ Installation](#installation)) |
-| S3  | Permanent link to Reproducible Capsule | (to be archived on Zenodo) |
+| S3  | Permanent link to Reproducible Capsule | https://doi.org/10.5281/zenodo.20759365 |
 | S4  | Legal Software License       | MIT            |
 | S5  | Computing platforms / Operating Systems | Windows 10+ (GUI tested); Ubuntu/macOS (CI-verified, no manual GUI tests) |
 | S6  | Installation requirements & dependencies | conda env or pip, see [§ Installation](#installation) |
