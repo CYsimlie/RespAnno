@@ -98,7 +98,6 @@ RespAnno/
 │   │   ├── label_taxonomy.py      # Label routing
 │   │   └── frame_labels.py        # Frame-level training label construction
 │   └── gui/                       # Reusable GUI components
-├── legacy/1.0.0.py
 ├── tests/                         # Automated tests
 ├── docs/                          # Documentation
 ├── demo_data/                     # Example respiratory sound recordings and labels
@@ -428,7 +427,6 @@ These tests validate software functionality, file-format robustness, and computa
 ```text
 RespAnno/
 ├── 1.0.0.py
-├── legacy/
 ├── respanno/
 ├── tests/
 ├── docs/
